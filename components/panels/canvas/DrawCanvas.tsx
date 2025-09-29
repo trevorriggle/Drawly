@@ -38,6 +38,7 @@ export default function DrawCanvas() {
       if (parent) {
         // Get the full available space in the canvas-wrap area
         const rect = parent.getBoundingClientRect();
+        console.log('Canvas container size:', rect.width, 'x', rect.height);
         setCanvasSize({ width: rect.width, height: rect.height });
       }
     };
@@ -121,7 +122,7 @@ export default function DrawCanvas() {
     const container = containerRef.current;
     if (!container) return;
 
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = (window.devicePixelRatio || 1) * 2; // Double the resolution for extra crispness
 
     // Add white background once
     if (!container.querySelector('.bg')) {
@@ -141,6 +142,7 @@ export default function DrawCanvas() {
         const canvas = document.createElement('canvas');
         canvas.width = canvasSize.width * dpr;
         canvas.height = canvasSize.height * dpr;
+        console.log(`Creating canvas ${layer.id}: ${canvas.width}x${canvas.height} (DPR: ${dpr})`);
         canvas.style.cssText = `
           position: absolute; top: 0; left: 0;
           width: ${canvasSize.width}px; height: ${canvasSize.height}px;
@@ -333,9 +335,10 @@ export default function DrawCanvas() {
   }
 
   function onPointerMove(e: React.PointerEvent) {
-    // Always track mouse position for cursor preview
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (rect) {
+    // Always track mouse position for cursor preview - use parent element for accurate positioning
+    const parent = containerRef.current?.parentElement;
+    if (parent) {
+      const rect = parent.getBoundingClientRect();
       setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
     }
 
@@ -483,13 +486,13 @@ export default function DrawCanvas() {
   }
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, overflow: 'hidden' }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
       <div
         ref={containerRef}
         style={{
           position: 'relative',
-          width: '100%',
-          height: '100%',
+          width: canvasSize.width,
+          height: canvasSize.height,
           transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
           transformOrigin: '0 0'
         }}
