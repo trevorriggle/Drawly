@@ -25,7 +25,28 @@ export default function DrawCanvas() {
   const linePreviewImageData = useRef<ImageData | null>(null);
   const last = useRef<{x:number;y:number}|null>(null);
 
-  const canvasSize = { width: 1600, height: 1000 };
+  const [canvasSize, setCanvasSize] = useState({ width: 1600, height: 1000 });
+
+  // Update canvas size to fill container
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const updateSize = () => {
+      const rect = container.parentElement?.getBoundingClientRect();
+      if (rect) {
+        setCanvasSize({ width: rect.width, height: rect.height });
+      }
+    };
+
+    updateSize();
+    const resizeObserver = new ResizeObserver(updateSize);
+    if (container.parentElement) {
+      resizeObserver.observe(container.parentElement);
+    }
+
+    return () => resizeObserver.disconnect();
+  }, []);
 
   // Proper flood fill function
   function fillArea(ctx: CanvasRenderingContext2D, x: number, y: number, fillColor: string, size: { width: number, height: number }) {
@@ -177,8 +198,20 @@ export default function DrawCanvas() {
       return;
     }
 
-    // Tools that don't draw on pointer down/move
-    const nonDrawingTools = ['zoom', 'select', 'lasso', 'wand', 'transform', 'crop', 'text'];
+    // Handle special non-drawing tools
+    if (activeToolId === 'text') {
+      // Simple text input (placeholder)
+      const text = prompt('Enter text:');
+      if (text) {
+        ctx.font = `${brushSize * 4}px Arial`;
+        ctx.fillStyle = primaryColor;
+        ctx.fillText(text, x, y);
+      }
+      return;
+    }
+
+    // Tools that truly don't draw
+    const nonDrawingTools = ['select', 'lasso', 'wand', 'transform', 'crop'];
     if (nonDrawingTools.includes(activeToolId)) {
       console.log(`${activeToolId} tool selected - no drawing action`);
       return;
@@ -216,13 +249,12 @@ export default function DrawCanvas() {
     }
 
     if (activeToolId === 'shapes') {
-      // Start shape drawing mode - for now just draw a circle
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = primaryColor;
-      ctx.lineWidth = brushSize;
-      ctx.beginPath();
-      ctx.arc(x, y, brushSize * 2, 0, Math.PI * 2);
-      ctx.stroke();
+      // Start shape drawing mode (similar to line tool)
+      isDrawingLine.current = true; // Reuse line drawing logic for shapes
+      lineStart.current = { x, y };
+      const canvas = getActiveLayerCanvas();
+      linePreviewImageData.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      console.log(`Starting shape at ${x}, ${y}`);
       return;
     }
 
@@ -298,20 +330,30 @@ export default function DrawCanvas() {
     const ctx = getActiveLayerCtx();
     const { x, y } = toCanvasCoords(e.clientX, e.clientY);
 
-    // Handle line tool preview
+    // Handle line/shape tool preview
     if (isDrawingLine.current && lineStart.current && linePreviewImageData.current) {
       // Restore canvas to state before preview
       ctx.putImageData(linePreviewImageData.current, 0, 0);
 
-      // Draw preview line
+      // Draw preview
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = primaryColor;
       ctx.lineWidth = brushSize;
       ctx.lineCap = 'round';
       ctx.setLineDash([5, 5]); // Dashed preview
       ctx.beginPath();
-      ctx.moveTo(lineStart.current.x, lineStart.current.y);
-      ctx.lineTo(x, y);
+
+      if (activeToolId === 'line') {
+        // Draw line preview
+        ctx.moveTo(lineStart.current.x, lineStart.current.y);
+        ctx.lineTo(x, y);
+      } else if (activeToolId === 'shapes') {
+        // Draw rectangle preview
+        const width = x - lineStart.current.x;
+        const height = y - lineStart.current.y;
+        ctx.rect(lineStart.current.x, lineStart.current.y, width, height);
+      }
+
       ctx.stroke();
       ctx.setLineDash([]); // Reset line dash
       return;
@@ -326,20 +368,30 @@ export default function DrawCanvas() {
   }
 
   function onPointerUp(e: React.PointerEvent) {
-    // Handle line tool completion
+    // Handle line/shape tool completion
     if (isDrawingLine.current && lineStart.current) {
       const ctx = getActiveLayerCtx();
       const { x, y } = toCanvasCoords(e.clientX, e.clientY);
 
-      // Draw final line
+      // Draw final shape
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = primaryColor;
       ctx.lineWidth = brushSize;
       ctx.lineCap = 'round';
       ctx.setLineDash([]); // Solid line
       ctx.beginPath();
-      ctx.moveTo(lineStart.current.x, lineStart.current.y);
-      ctx.lineTo(x, y);
+
+      if (activeToolId === 'line') {
+        // Draw final line
+        ctx.moveTo(lineStart.current.x, lineStart.current.y);
+        ctx.lineTo(x, y);
+      } else if (activeToolId === 'shapes') {
+        // Draw final rectangle
+        const width = x - lineStart.current.x;
+        const height = y - lineStart.current.y;
+        ctx.rect(lineStart.current.x, lineStart.current.y, width, height);
+      }
+
       ctx.stroke();
 
       isDrawingLine.current = false;
@@ -366,7 +418,6 @@ export default function DrawCanvas() {
           case 'KeyB': e.preventDefault(); setActiveToolId('brush'); break;
           case 'KeyE': e.preventDefault(); setActiveToolId('eraser'); break;
           case 'KeyV': e.preventDefault(); setActiveToolId('select'); break;
-          case 'KeyZ': e.preventDefault(); setActiveToolId('zoom'); break;
           case 'KeyG': e.preventDefault(); setActiveToolId('fill'); break;
           case 'KeyT': e.preventDefault(); setActiveToolId('text'); break;
           case 'KeyL': e.preventDefault(); setActiveToolId('line'); break;
@@ -393,17 +444,15 @@ export default function DrawCanvas() {
   }
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
       <div
         ref={containerRef}
         style={{
           position: 'relative',
-          width: canvasSize.width,
-          height: canvasSize.height,
+          width: '100%',
+          height: '100%',
           transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
-          transformOrigin: '0 0',
-          border: '1px solid #222',
-          boxShadow: '0 0 0 1px rgba(255,255,255,0.05) inset'
+          transformOrigin: '0 0'
         }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -419,10 +468,11 @@ export default function DrawCanvas() {
         {activeToolId === 'smudge' && <span style={{ marginLeft: 8, color: '#10b981' }}>SMUDGES</span>}
         {activeToolId === 'fill' && <span style={{ marginLeft: 8, color: '#10b981' }}>(G) FILLS</span>}
         {activeToolId === 'gradient' && <span style={{ marginLeft: 8, color: '#10b981' }}>GRADIENT</span>}
-        {activeToolId === 'shapes' && <span style={{ marginLeft: 8, color: '#10b981' }}>(U) SHAPES</span>}
+        {activeToolId === 'shapes' && <span style={{ marginLeft: 8, color: '#10b981' }}>(U) RECTANGLES</span>}
         {activeToolId === 'line' && <span style={{ marginLeft: 8, color: '#10b981' }}>(L) LINES</span>}
         {activeToolId === 'clone' && <span style={{ marginLeft: 8, color: '#10b981' }}>CLONES</span>}
-        {['zoom', 'select', 'lasso', 'wand', 'transform', 'crop', 'text'].includes(activeToolId) && <span style={{ marginLeft: 8, color: '#f59e0b' }}>NO DRAW</span>}
+        {activeToolId === 'text' && <span style={{ marginLeft: 8, color: '#10b981' }}>(T) CLICK TO TYPE</span>}
+        {['select', 'lasso', 'wand', 'transform', 'crop'].includes(activeToolId) && <span style={{ marginLeft: 8, color: '#f59e0b' }}>NO DRAW</span>}
         <span style={{ margin: '0 8px' }}>·</span>
         <span>Layer: <span className="kbd" style={{ color: '#3b82f6' }}>{layers.find(l => l.id === activeLayerId)?.name || activeLayerId}</span></span>
         <span style={{ margin: '0 8px' }}>·</span>

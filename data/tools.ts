@@ -3,7 +3,7 @@ import type { IconToken } from '@/lib/icons-registry';
 export type ToolId =
   | 'pencil' | 'brush' | 'eraser' | 'fill' | 'gradient'
   | 'shapes' | 'line' | 'smudge' | 'clone'
-  | 'select' | 'lasso' | 'wand' | 'transform' | 'crop' | 'zoom'
+  | 'select' | 'lasso' | 'wand' | 'transform' | 'crop'
   | 'text';
 
 export interface ToolDef {
@@ -29,6 +29,5 @@ export const DEFAULT_TOOLS: ToolDef[] = [
   { id: 'wand',      label: 'Magic Wand',icon: 'wand',     group: 'select' },
   { id: 'transform', label: 'Transform', icon: 'transform',group: 'edit' },
   { id: 'crop',      label: 'Crop',      icon: 'crop',     group: 'edit' },
-  { id: 'zoom',      label: 'Zoom',      icon: 'zoom',     key: 'Z', group: 'nav' },
   { id: 'text',      label: 'Text',      icon: 'text',     key: 'T', group: 'type' }
 ];

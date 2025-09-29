@@ -37,7 +37,7 @@ export default function LayersPanel() {
               </button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 20 }}>
-              <span style={{ fontSize: 12, color: '#6b7280', minWidth: 50 }}>Opacity:</span>
+              <span style={{ fontSize: 12, color: '#6b7280', minWidth: 45 }}>Opacity:</span>
               <input
                 type="range"
                 min="0"
@@ -45,9 +45,9 @@ export default function LayersPanel() {
                 step="0.1"
                 value={l.opacity}
                 onChange={(e) => setLayerOpacity(l.id, parseFloat(e.target.value))}
-                style={{ flex: 1 }}
+                style={{ flex: 1, minWidth: 0 }}
               />
-              <span style={{ fontSize: 11, color: '#6b7280', minWidth: 30 }}>{Math.round(l.opacity * 100)}%</span>
+              <span style={{ fontSize: 11, color: '#6b7280', minWidth: 35, textAlign: 'right' }}>{Math.round(l.opacity * 100)}%</span>
             </div>
           </div>
         ))}
