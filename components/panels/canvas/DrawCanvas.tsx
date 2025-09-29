@@ -38,12 +38,23 @@ export default function DrawCanvas() {
       if (parent) {
         // Get the full available space in the canvas-wrap area
         const rect = parent.getBoundingClientRect();
-        console.log('Canvas container size:', rect.width, 'x', rect.height);
-        setCanvasSize({ width: rect.width, height: rect.height });
+        const width = Math.max(rect.width, 100); // Minimum size
+        const height = Math.max(rect.height, 100);
+        console.log('Canvas container size:', width, 'x', height);
+
+        // Only update if significantly different to avoid unnecessary re-renders
+        setCanvasSize(prev => {
+          if (Math.abs(prev.width - width) > 1 || Math.abs(prev.height - height) > 1) {
+            return { width, height };
+          }
+          return prev;
+        });
       }
     };
 
-    updateSize();
+    // Initial size calculation with delay to ensure layout is ready
+    setTimeout(updateSize, 100);
+
     const resizeObserver = new ResizeObserver(updateSize);
     if (container.parentElement) {
       resizeObserver.observe(container.parentElement);
@@ -53,7 +64,7 @@ export default function DrawCanvas() {
   }, []); // Empty dependency array - only run once
 
   // Proper flood fill function
-  function fillArea(ctx: CanvasRenderingContext2D, x: number, y: number, fillColor: string, size: { width: number, height: number }) {
+  function fillArea(ctx: CanvasRenderingContext2D, x: number, y: number, fillColor: string) {
     const canvas = ctx.canvas;
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
@@ -169,7 +180,7 @@ export default function DrawCanvas() {
       canvas.style.pointerEvents = layer.id === activeLayerId ? 'auto' : 'none';
       canvas.style.zIndex = String(index + 1);
     });
-  }, [layers, activeLayerId]);
+  }, [layers, activeLayerId, canvasSize.width, canvasSize.height]);
 
   function getActiveLayerCtx() {
     const canvas = layerCanvasRefs.current.get(activeLayerId);
@@ -184,8 +195,11 @@ export default function DrawCanvas() {
   }
 
   function toCanvasCoords(clientX:number, clientY:number) {
-    const canvas = getActiveLayerCanvas();
-    const rect = canvas.getBoundingClientRect();
+    // Use same coordinate system as mouse tracking for consistency
+    const parent = containerRef.current?.parentElement;
+    if (!parent) return { x: 0, y: 0 };
+
+    const rect = parent.getBoundingClientRect();
     const x = (clientX - rect.left - view.x) / view.scale;
     const y = (clientY - rect.top - view.y) / view.scale;
     return { x, y };
@@ -248,7 +262,7 @@ export default function DrawCanvas() {
     // Handle special tools that don't use traditional drawing
     if (activeToolId === 'fill') {
       // Flood fill at click point
-      fillArea(ctx, x, y, primaryColor, canvasSize);
+      fillArea(ctx, x, y, primaryColor);
       return;
     }
 
