@@ -92,79 +92,53 @@ export default function DrawCanvas() {
     } : null;
   }
 
-  // Initialize canvases for all layers
+  // Simple layer system - just add canvases as needed
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     const dpr = window.devicePixelRatio || 1;
 
-    // Only clear if we need to rebuild everything (first time or major changes)
-    const existingCanvases = Array.from(container.children).filter(child => child.tagName === 'CANVAS');
-    const needsRebuild = existingCanvases.length === 0 || existingCanvases.length !== layers.length;
-
-    if (needsRebuild) {
-      container.innerHTML = '';
-      layerCanvasRefs.current.clear();
+    // Add white background once
+    if (!container.querySelector('.bg')) {
+      const bg = document.createElement('div');
+      bg.className = 'bg';
+      bg.style.cssText = `
+        position: absolute; top: 0; left: 0; z-index: 0;
+        width: ${canvasSize.width}px; height: ${canvasSize.height}px;
+        background: white;
+      `;
+      container.appendChild(bg);
     }
 
-    // Create/update canvas for each layer
+    // Create missing canvases
     layers.forEach((layer, index) => {
-      let canvas = layerCanvasRefs.current.get(layer.id);
-
-      if (!canvas) {
-        // Create new canvas only if it doesn't exist
-        canvas = document.createElement('canvas');
-        canvas.width = Math.floor(canvasSize.width * dpr);
-        canvas.height = Math.floor(canvasSize.height * dpr);
-        canvas.style.width = canvasSize.width + 'px';
-        canvas.style.height = canvasSize.height + 'px';
-        canvas.style.position = 'absolute';
-        canvas.style.top = '0';
-        canvas.style.left = '0';
-        canvas.style.touchAction = 'none';
+      if (!layerCanvasRefs.current.has(layer.id)) {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvasSize.width * dpr;
+        canvas.height = canvasSize.height * dpr;
+        canvas.style.cssText = `
+          position: absolute; top: 0; left: 0;
+          width: ${canvasSize.width}px; height: ${canvasSize.height}px;
+          z-index: ${index + 1};
+        `;
 
         const ctx = canvas.getContext('2d')!;
         ctx.scale(dpr, dpr);
 
         layerCanvasRefs.current.set(layer.id, canvas);
         container.appendChild(canvas);
+
       }
 
-      // Update canvas properties (these can change)
-      canvas.style.pointerEvents = layer.id === activeLayerId ? 'auto' : 'none';
-      canvas.style.visibility = layer.visible ? 'visible' : 'hidden';
+      // Update canvas properties
+      const canvas = layerCanvasRefs.current.get(layer.id)!;
       canvas.style.opacity = String(layer.opacity);
-      canvas.style.zIndex = String(index + 1); // Start at 1 to leave space for background
+      canvas.style.visibility = layer.visible ? 'visible' : 'hidden';
+      canvas.style.pointerEvents = layer.id === activeLayerId ? 'auto' : 'none';
+      canvas.style.zIndex = String(index + 1);
     });
-
-    // Add background div only once for bottom layer
-    if (!container.querySelector('.canvas-background')) {
-      const bgDiv = document.createElement('div');
-      bgDiv.className = 'canvas-background';
-      bgDiv.style.position = 'absolute';
-      bgDiv.style.top = '0';
-      bgDiv.style.left = '0';
-      bgDiv.style.width = canvasSize.width + 'px';
-      bgDiv.style.height = canvasSize.height + 'px';
-      bgDiv.style.backgroundColor = '#ffffff';
-      bgDiv.style.zIndex = '-1';
-      container.appendChild(bgDiv);
-    }
-
-    // Add test drawing to first layer only once
-    const firstLayerCanvas = layerCanvasRefs.current.get(layers[0]?.id);
-    if (firstLayerCanvas && layers.length > 0) {
-      const ctx = firstLayerCanvas.getContext('2d')!;
-      const hasTestCircle = ctx.getImageData(100, 100, 1, 1).data[0] === 255;
-      if (!hasTestCircle) {
-        ctx.fillStyle = '#ff0000';
-        ctx.beginPath();
-        ctx.arc(100, 100, 20, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-  }, [layers, activeLayerId, canvasSize.width, canvasSize.height]);
+  }, [layers, activeLayerId]);
 
   function getActiveLayerCtx() {
     const canvas = layerCanvasRefs.current.get(activeLayerId);

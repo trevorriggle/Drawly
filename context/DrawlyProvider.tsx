@@ -25,8 +25,8 @@ const initial: State = {
   activeToolId: 'pencil',
   primaryColor: '#1f2937',
   brushSize: 4,
-  layers: [{ id: 'layer-1', name: 'Layer 1', visible: true, opacity: 1 }],
-  activeLayerId: 'layer-1'
+  layers: [{ id: 'background', name: 'Background', visible: true, opacity: 1 }],
+  activeLayerId: 'background'
 };
 
 function reducer(state: State, action: Action): State {
