@@ -133,7 +133,7 @@ export default function DrawCanvas() {
     const container = containerRef.current;
     if (!container) return;
 
-    const dpr = (window.devicePixelRatio || 1) * 2; // Double the resolution for extra crispness
+    const dpr = (window.devicePixelRatio || 1) * 4; // 4x resolution for ultra-crisp rendering
 
     // Add white background once
     if (!container.querySelector('.bg')) {
@@ -160,12 +160,17 @@ export default function DrawCanvas() {
           z-index: ${index + 1};
         `;
 
-        const ctx = canvas.getContext('2d')!;
-        // High-quality rendering settings
+        const ctx = canvas.getContext('2d', {
+          alpha: true,
+          desynchronized: false,
+          colorSpace: 'srgb'
+        })!;
+        // Ultra high-quality rendering settings
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
+        // Note: textRenderingOptimization not available in all browsers
         ctx.scale(dpr, dpr);
 
         layerCanvasRefs.current.set(layer.id, canvas);
