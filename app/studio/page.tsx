@@ -29,7 +29,7 @@ export default function StudioPage() {
 
       <aside className="right-panel">
         <ColorPanel />
-        <div style={{ height: 12 }} />
+        <div style={{ height: 20 }} />
         <LayersPanel />
       </aside>
     </div>

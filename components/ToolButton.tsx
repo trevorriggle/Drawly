@@ -9,21 +9,9 @@ export default function ToolButton({
     <button
       onClick={onClick}
       title={`${tool.label}${tool.key ? ` (${tool.key})` : ''}`}
-      style={{
-        width: '100%',
-        display: 'grid',
-        placeItems: 'center',
-        padding: 8,
-        marginBottom: 8,
-        borderRadius: 8,
-        background: active ? '#111827' : 'transparent',
-        color: active ? 'white' : 'black',
-        border: active ? '1px solid #374151' : '1px solid transparent',
-        cursor: 'pointer'
-      }}
+      className={`tool-button ${active ? 'active' : ''}`}
     >
       <Icon name={tool.icon} />
-      <div style={{ fontSize: 11, marginTop: 4 }}>{tool.label}</div>
     </button>
   );
 }

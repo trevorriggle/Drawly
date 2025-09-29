@@ -5,18 +5,47 @@ import Icon from '@/components/Icon';
 export default function ColorPanel() {
   const { primaryColor, setPrimaryColor, brushSize, setBrushSize } = useDrawly();
   return (
-    <section>
-      <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div className="panel">
+      <h3 className="panel-title">
         <Icon name="color" /> Color & Brush
       </h3>
-      <div style={{ marginTop: 10 }}>
-        <input type="color" value={primaryColor} onChange={(e)=>setPrimaryColor(e.target.value)} />
-        <span style={{ marginLeft: 10, opacity: .7 }}>{primaryColor}</span>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <input
+            type="color"
+            value={primaryColor}
+            onChange={(e)=>setPrimaryColor(e.target.value)}
+            style={{
+              width: 32,
+              height: 32,
+              border: '1px solid #e5e7eb',
+              borderRadius: 6,
+              cursor: 'pointer'
+            }}
+          />
+          <span style={{ fontSize: 14, color: '#6b7280', fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>{primaryColor}</span>
+        </div>
       </div>
-      <div style={{ marginTop: 12 }}>
-        <label>Brush Size: <span className="kbd">{brushSize}</span></label>
-        <input type="range" min={1} max={64} value={brushSize} onChange={(e)=>setBrushSize(parseInt(e.target.value))} />
+      <div>
+        <label style={{ display: 'block', fontSize: 14, color: '#374151', marginBottom: 8 }}>
+          Brush Size: <span className="kbd">{brushSize}px</span>
+        </label>
+        <input
+          type="range"
+          min={1}
+          max={64}
+          value={brushSize}
+          onChange={(e)=>setBrushSize(parseInt(e.target.value))}
+          style={{
+            width: '100%',
+            height: 6,
+            borderRadius: 3,
+            background: '#e5e7eb',
+            outline: 'none',
+            cursor: 'pointer'
+          }}
+        />
       </div>
-    </section>
+    </div>
   );
 }
