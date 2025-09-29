@@ -46,7 +46,7 @@ export default function DrawCanvas() {
     }
 
     return () => resizeObserver.disconnect();
-  }, [canvasSize.width, canvasSize.height]);
+  }, []); // Empty dependency array - only run once
 
   // Proper flood fill function
   function fillArea(ctx: CanvasRenderingContext2D, x: number, y: number, fillColor: string, size: { width: number, height: number }) {
@@ -203,6 +203,7 @@ export default function DrawCanvas() {
       // Simple text input (placeholder)
       const text = prompt('Enter text:');
       if (text) {
+        const { x, y } = toCanvasCoords(e.clientX, e.clientY);
         const ctx = getActiveLayerCtx();
         ctx.font = `${brushSize * 4}px Arial`;
         ctx.fillStyle = primaryColor;
