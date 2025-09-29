@@ -26,6 +26,7 @@ export default function DrawCanvas() {
   const last = useRef<{x:number;y:number}|null>(null);
 
   const [canvasSize, setCanvasSize] = useState({ width: 1600, height: 1000 });
+  const [mousePos, setMousePos] = useState<{x: number, y: number} | null>(null);
 
   // Update canvas size to fill container
   useEffect(() => {
@@ -191,8 +192,8 @@ export default function DrawCanvas() {
 
     if (e.button === 1 || e.button === 0 && (e.nativeEvent as any).isPrimary === false) return; // ignore middle/secondary
 
-    // Handle panning first (spacebar + drag)
-    if (panKey) {
+    // Handle panning (spacebar + drag OR pan tool)
+    if (panKey || activeToolId === 'pan') {
       isPanning.current = true;
       last.current = { x: e.clientX, y: e.clientY };
       return;
@@ -213,9 +214,13 @@ export default function DrawCanvas() {
     }
 
     // Tools that truly don't draw
-    const nonDrawingTools = ['select', 'lasso', 'wand', 'transform', 'crop'];
+    const nonDrawingTools = ['select', 'lasso', 'wand', 'transform', 'crop', 'pan'];
     if (nonDrawingTools.includes(activeToolId)) {
-      console.log(`${activeToolId} tool selected - no drawing action`);
+      if (activeToolId === 'pan') {
+        // Pan tool - handled above
+      } else {
+        console.log(`${activeToolId} tool selected - no drawing action`);
+      }
       return;
     }
 
@@ -318,6 +323,12 @@ export default function DrawCanvas() {
   }
 
   function onPointerMove(e: React.PointerEvent) {
+    // Always track mouse position for cursor preview
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (rect) {
+      setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    }
+
     if (!last.current && !isDrawingLine.current) return;
 
     // panning
@@ -425,6 +436,7 @@ export default function DrawCanvas() {
           case 'KeyL': e.preventDefault(); setActiveToolId('line'); break;
           case 'KeyU': e.preventDefault(); setActiveToolId('shapes'); break;
           case 'KeyQ': e.preventDefault(); setActiveToolId('lasso'); break;
+          case 'KeyH': e.preventDefault(); setActiveToolId('pan'); break;
         }
       }
     };
@@ -434,14 +446,29 @@ export default function DrawCanvas() {
     return () => { window.removeEventListener('keydown', d); window.removeEventListener('keyup', u); };
   }, [setActiveToolId]);
 
-  // wheel zoom with ctrl/cmd
+  // wheel zoom
   function onWheel(e: React.WheelEvent) {
-    if (!(e.ctrlKey || e.metaKey)) return;
     e.preventDefault();
-    const scaleBy = 1.05;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const scaleBy = 1.1;
+    const direction = e.deltaY > 0 ? 1 / scaleBy : scaleBy;
+
     setView(v => {
-      const direction = e.deltaY > 0 ? 1 / scaleBy : scaleBy;
-      return { ...v, scale: Math.max(0.2, Math.min(6, v.scale * direction)) };
+      const newScale = Math.max(0.2, Math.min(6, v.scale * direction));
+
+      // Zoom towards mouse position
+      const scaleDiff = newScale - v.scale;
+      const newX = v.x - (mouseX * scaleDiff) / v.scale;
+      const newY = v.y - (mouseY * scaleDiff) / v.scale;
+
+      return { x: newX, y: newY, scale: newScale };
     });
   }
 
@@ -460,8 +487,27 @@ export default function DrawCanvas() {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onPointerLeave={() => setMousePos(null)}
         onWheel={onWheel}
       />
+      {/* Brush size cursor preview */}
+      {mousePos && ['pencil', 'brush', 'eraser'].includes(activeToolId) && (
+        <div
+          style={{
+            position: 'absolute',
+            left: mousePos.x - brushSize / 2,
+            top: mousePos.y - brushSize / 2,
+            width: brushSize * view.scale,
+            height: brushSize * view.scale,
+            borderRadius: '50%',
+            border: '1px solid rgba(0,0,0,0.5)',
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            pointerEvents: 'none',
+            transform: `scale(${1 / view.scale})`,
+            transformOrigin: 'center'
+          }}
+        />
+      )}
       <div style={{ position:'absolute', left:12, bottom:12, opacity:.8, fontSize:12, background: 'rgba(0,0,0,0.8)', color: 'white', padding: '8px 12px', borderRadius: 6 }}>
         <span style={{ fontWeight: 600 }}>{activeToolId.toUpperCase()}</span>
         {activeToolId === 'pencil' && <span style={{ marginLeft: 8, color: '#10b981' }}>(P) DRAWS</span>}
@@ -474,6 +520,7 @@ export default function DrawCanvas() {
         {activeToolId === 'line' && <span style={{ marginLeft: 8, color: '#10b981' }}>(L) LINES</span>}
         {activeToolId === 'clone' && <span style={{ marginLeft: 8, color: '#10b981' }}>CLONES</span>}
         {activeToolId === 'text' && <span style={{ marginLeft: 8, color: '#10b981' }}>(T) CLICK TO TYPE</span>}
+        {activeToolId === 'pan' && <span style={{ marginLeft: 8, color: '#3b82f6' }}>(H) DRAG TO PAN</span>}
         {['select', 'lasso', 'wand', 'transform', 'crop'].includes(activeToolId) && <span style={{ marginLeft: 8, color: '#f59e0b' }}>NO DRAW</span>}
         <span style={{ margin: '0 8px' }}>·</span>
         <span>Layer: <span className="kbd" style={{ color: '#3b82f6' }}>{layers.find(l => l.id === activeLayerId)?.name || activeLayerId}</span></span>
