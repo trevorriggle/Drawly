@@ -5,8 +5,8 @@ import React, { createContext, useContext, ReactNode } from 'react';
 /** Icon tokens (stable keys used by ToolButton & elsewhere) */
 export type IconToken =
   | "pencil" | "brush" | "eraser" | "fill" | "gradient"
-  | "shapes" | "line" | "smudge" | "clone" 
-  | "select" | "lasso" | "wand" | "transform" | "crop" | "zoom"
+  | "shapes" | "line" | "smudge" | "clone"
+  | "select" | "lasso" | "wand" | "transform" | "crop" | "zoom" | "hand"
   | "text" | "layers" | "color" | "undo" | "redo";
 
 export type IconMap = Record<IconToken, React.FC<React.SVGProps<SVGSVGElement>>>;
@@ -28,6 +28,7 @@ const Def = {
   transform: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><rect x="6" y="6" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2"/><path d="M6 10h4V6" stroke="currentColor" strokeWidth="2"/></svg>),
   crop: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><path d="M7 3v14a3 3 0 0 0 3 3h14" stroke="currentColor" strokeWidth="2" fill="none"/><path d="M21 17V3a2 2 0 0 0-2-2H5" stroke="currentColor" strokeWidth="2" fill="none"/></svg>),
   zoom: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><circle cx="10" cy="10" r="6" stroke="currentColor" strokeWidth="2" fill="none"/><path d="M22 22 15 15" stroke="currentColor" strokeWidth="2"/></svg>),
+  hand: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><path d="M8 2v7a2 2 0 0 1-2 2 2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2z" fill="currentColor"/><path d="M13 4v9a2 2 0 0 1-2 2 2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2z" fill="currentColor"/><path d="M18 6v11a2 2 0 0 1-2 2 2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2z" fill="currentColor"/><path d="M23 8v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" fill="currentColor"/></svg>),
   text: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><path d="M4 6h16M12 6v12" stroke="currentColor" strokeWidth="2"/></svg>),
   layers: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><path d="m12 4 9 5-9 5-9-5 9-5z"/><path d="m3 14 9 5 9-5" /></svg>),
   color: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><circle cx="8" cy="8" r="4"/><circle cx="16" cy="8" r="4"/><circle cx="12" cy="16" r="4"/></svg>),

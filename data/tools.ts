@@ -18,7 +18,7 @@ export const DEFAULT_TOOLS: ToolDef[] = [
   { id: 'pencil',    label: 'Pencil',    icon: 'pencil',   key: 'P', group: 'draw' },
   { id: 'brush',     label: 'Brush',     icon: 'brush',    key: 'B', group: 'draw' },
   { id: 'eraser',    label: 'Eraser',    icon: 'eraser',   key: 'E', group: 'draw' },
-  { id: 'pan',       label: 'Pan',       icon: 'select',   key: 'H', group: 'nav' },
+  { id: 'pan',       label: 'Pan',       icon: 'hand',     key: 'H', group: 'nav' },
   { id: 'fill',      label: 'Fill',      icon: 'fill',     key: 'G', group: 'edit' },
   { id: 'gradient',  label: 'Gradient',  icon: 'gradient', key: 'Shift+G', group: 'edit' },
   { id: 'shapes',    label: 'Shapes',    icon: 'shapes',   key: 'U', group: 'draw' },
