@@ -34,8 +34,10 @@ export default function DrawCanvas() {
     if (!container) return;
 
     const updateSize = () => {
-      const rect = container.parentElement?.getBoundingClientRect();
-      if (rect) {
+      const parent = container.parentElement;
+      if (parent) {
+        // Get the full available space in the canvas-wrap area
+        const rect = parent.getBoundingClientRect();
         setCanvasSize({ width: rect.width, height: rect.height });
       }
     };
@@ -146,6 +148,11 @@ export default function DrawCanvas() {
         `;
 
         const ctx = canvas.getContext('2d')!;
+        // High-quality rendering settings
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
         ctx.scale(dpr, dpr);
 
         layerCanvasRefs.current.set(layer.id, canvas);
@@ -206,8 +213,11 @@ export default function DrawCanvas() {
       if (text) {
         const { x, y } = toCanvasCoords(e.clientX, e.clientY);
         const ctx = getActiveLayerCtx();
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.font = `${brushSize * 4}px Arial`;
         ctx.fillStyle = primaryColor;
+        ctx.textBaseline = 'top';
         ctx.fillText(text, x, y);
       }
       return;
@@ -274,18 +284,22 @@ export default function DrawCanvas() {
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
     } else if (activeToolId === 'brush') {
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = primaryColor;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
     } else if (activeToolId === 'smudge') {
       // Smudge tool: sample colors and blend them
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = primaryColor;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.globalAlpha = 0.3; // Blend effect
     } else if (activeToolId === 'clone') {
       // Clone tool: copy from another area (simplified for now)
@@ -469,7 +483,7 @@ export default function DrawCanvas() {
   }
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, overflow: 'hidden' }}>
       <div
         ref={containerRef}
         style={{
@@ -491,16 +505,15 @@ export default function DrawCanvas() {
         <div
           style={{
             position: 'absolute',
-            left: mousePos.x - brushSize / 2,
-            top: mousePos.y - brushSize / 2,
+            left: mousePos.x - (brushSize * view.scale) / 2,
+            top: mousePos.y - (brushSize * view.scale) / 2,
             width: brushSize * view.scale,
             height: brushSize * view.scale,
             borderRadius: '50%',
-            border: '1px solid rgba(0,0,0,0.5)',
-            backgroundColor: 'rgba(255,255,255,0.2)',
+            border: '1px solid rgba(0,0,0,0.8)',
+            backgroundColor: 'rgba(255,255,255,0.3)',
             pointerEvents: 'none',
-            transform: `scale(${1 / view.scale})`,
-            transformOrigin: 'center'
+            zIndex: 1000
           }}
         />
       )}
