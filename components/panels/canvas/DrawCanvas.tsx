@@ -133,7 +133,7 @@ export default function DrawCanvas() {
     const container = containerRef.current;
     if (!container) return;
 
-    const dpr = (window.devicePixelRatio || 1) * 4; // 4x resolution for ultra-crisp rendering
+    const dpr = (window.devicePixelRatio || 1) * 8; // 8x resolution for absolutely fantastic quality
 
     // Add white background once
     if (!container.querySelector('.bg')) {
