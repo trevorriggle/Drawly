@@ -13,36 +13,71 @@ import { useDrawly } from '@/context/DrawlyProvider';
  * This is intentionally small but stable so the UI can be built around it.
  */
 export default function DrawCanvas() {
-  const { activeToolId, primaryColor, brushSize, setActiveToolId } = useDrawly();
+  const { activeToolId, primaryColor, brushSize, setActiveToolId, layers, activeLayerId } = useDrawly();
 
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const layerCanvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
   const isPanning = useRef(false);
   const last = useRef<{x:number;y:number}|null>(null);
 
-  // Ensure a crisp default canvas size
-  useEffect(() => {
-    const canvas = canvasRef.current!;
-    const dpr = window.devicePixelRatio || 1;
-    const w = 1600, h = 1000;
-    canvas.width = Math.floor(w * dpr);
-    canvas.height = Math.floor(h * dpr);
-    canvas.style.width = w + 'px';
-    canvas.style.height = h + 'px';
-    const ctx = canvas.getContext('2d')!;
-    ctx.scale(dpr, dpr);
-    // background
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, w, h);
-  }, []);
+  const canvasSize = { width: 1600, height: 1000 };
 
-  function getCtx() {
-    const c = canvasRef.current!;
-    return c.getContext('2d')!;
+  // Initialize canvases for all layers
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const dpr = window.devicePixelRatio || 1;
+
+    // Clear existing canvases
+    container.innerHTML = '';
+    layerCanvasRefs.current.clear();
+
+    // Create canvas for each layer
+    layers.forEach((layer, index) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.floor(canvasSize.width * dpr);
+      canvas.height = Math.floor(canvasSize.height * dpr);
+      canvas.style.width = canvasSize.width + 'px';
+      canvas.style.height = canvasSize.height + 'px';
+      canvas.style.position = 'absolute';
+      canvas.style.top = '0';
+      canvas.style.left = '0';
+      canvas.style.touchAction = 'none';
+      canvas.style.pointerEvents = layer.id === activeLayerId ? 'auto' : 'none';
+      canvas.style.visibility = layer.visible ? 'visible' : 'hidden';
+      canvas.style.zIndex = String(index);
+
+      const ctx = canvas.getContext('2d')!;
+      ctx.scale(dpr, dpr);
+
+      // Background only for bottom layer
+      if (index === 0) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
+      }
+
+      layerCanvasRefs.current.set(layer.id, canvas);
+      container.appendChild(canvas);
+    });
+  }, [layers, activeLayerId]);
+
+  function getActiveLayerCtx() {
+    const canvas = layerCanvasRefs.current.get(activeLayerId);
+    if (!canvas) throw new Error(`Canvas for layer ${activeLayerId} not found`);
+    return canvas.getContext('2d')!;
+  }
+
+  function getActiveLayerCanvas() {
+    const canvas = layerCanvasRefs.current.get(activeLayerId);
+    if (!canvas) throw new Error(`Canvas for layer ${activeLayerId} not found`);
+    return canvas;
   }
 
   function toCanvasCoords(clientX:number, clientY:number) {
-    const rect = canvasRef.current!.getBoundingClientRect();
+    const canvas = getActiveLayerCanvas();
+    const rect = canvas.getBoundingClientRect();
     const x = (clientX - rect.left - view.x) / view.scale;
     const y = (clientY - rect.top - view.y) / view.scale;
     return { x, y };
@@ -53,20 +88,27 @@ export default function DrawCanvas() {
 
     if (e.button === 1 || e.button === 0 && (e.nativeEvent as any).isPrimary === false) return; // ignore middle/secondary
 
-    if ((e.nativeEvent as any).which === 1 && (e.nativeEvent as PointerEvent).buttons === 1) {
-      if (activeToolId === 'zoom') return;
-      if (e.nativeEvent instanceof PointerEvent && (e.nativeEvent as any).isPanActive) return;
-    }
-
-    if (activeToolId === 'zoom') return;
-
+    // Handle panning first (spacebar + drag)
     if (panKey) {
       isPanning.current = true;
       last.current = { x: e.clientX, y: e.clientY };
       return;
     }
 
-    const ctx = getCtx();
+    // Non-drawing tools should not draw
+    const nonDrawingTools = ['zoom', 'select', 'lasso', 'wand', 'transform', 'crop', 'text', 'fill', 'gradient', 'shapes', 'line', 'smudge', 'clone'];
+    if (nonDrawingTools.includes(activeToolId)) {
+      console.log(`${activeToolId} tool selected - no drawing action`);
+      return;
+    }
+
+    // Only pencil, brush, eraser should draw
+    const drawingTools = ['pencil', 'brush', 'eraser'];
+    if (!drawingTools.includes(activeToolId)) {
+      return;
+    }
+
+    const ctx = getActiveLayerCtx();
     const { x, y } = toCanvasCoords(e.clientX, e.clientY);
     last.current = { x, y };
 
@@ -118,7 +160,7 @@ export default function DrawCanvas() {
     }
 
     // drawing
-    const ctx = getCtx();
+    const ctx = getActiveLayerCtx();
     ctx.save();
     ctx.translate(view.x, view.y);
     ctx.scale(view.scale, view.scale);
@@ -183,13 +225,14 @@ export default function DrawCanvas() {
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-      <canvas
-        ref={canvasRef}
+      <div
+        ref={containerRef}
         style={{
+          position: 'relative',
+          width: canvasSize.width,
+          height: canvasSize.height,
           transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
           transformOrigin: '0 0',
-          touchAction: 'none',
-          background: '#fff',
           border: '1px solid #222',
           boxShadow: '0 0 0 1px rgba(255,255,255,0.05) inset'
         }}
@@ -201,9 +244,12 @@ export default function DrawCanvas() {
       />
       <div style={{ position:'absolute', left:12, bottom:12, opacity:.8, fontSize:12, background: 'rgba(0,0,0,0.8)', color: 'white', padding: '8px 12px', borderRadius: 6 }}>
         <span style={{ fontWeight: 600 }}>{activeToolId.toUpperCase()}</span>
-        {activeToolId === 'pencil' && <span style={{ marginLeft: 8 }}>(P)</span>}
-        {activeToolId === 'brush' && <span style={{ marginLeft: 8 }}>(B)</span>}
-        {activeToolId === 'eraser' && <span style={{ marginLeft: 8 }}>(E)</span>}
+        {activeToolId === 'pencil' && <span style={{ marginLeft: 8, color: '#10b981' }}>(P) DRAWS</span>}
+        {activeToolId === 'brush' && <span style={{ marginLeft: 8, color: '#10b981' }}>(B) DRAWS</span>}
+        {activeToolId === 'eraser' && <span style={{ marginLeft: 8, color: '#ef4444' }}>(E) ERASES</span>}
+        {!['pencil', 'brush', 'eraser'].includes(activeToolId) && <span style={{ marginLeft: 8, color: '#f59e0b' }}>NO DRAW</span>}
+        <span style={{ margin: '0 8px' }}>·</span>
+        <span>Layer: <span className="kbd" style={{ color: '#3b82f6' }}>{layers.find(l => l.id === activeLayerId)?.name || activeLayerId}</span></span>
         <span style={{ margin: '0 8px' }}>·</span>
         <span>Size: <span className="kbd">{brushSize}px</span></span>
         <span style={{ margin: '0 8px' }}>·</span>
