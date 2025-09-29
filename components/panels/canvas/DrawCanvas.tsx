@@ -19,9 +19,78 @@ export default function DrawCanvas() {
   const layerCanvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
   const isPanning = useRef(false);
+  const isDrawing = useRef(false);
+  const isDrawingLine = useRef(false);
+  const lineStart = useRef<{x:number;y:number}|null>(null);
+  const linePreviewImageData = useRef<ImageData | null>(null);
   const last = useRef<{x:number;y:number}|null>(null);
 
   const canvasSize = { width: 1600, height: 1000 };
+
+  // Proper flood fill function
+  function fillArea(ctx: CanvasRenderingContext2D, x: number, y: number, fillColor: string, size: { width: number, height: number }) {
+    const canvas = ctx.canvas;
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+
+    // Convert fill color to RGB
+    const fillColorRgb = hexToRgb(fillColor);
+    if (!fillColorRgb) return;
+
+    const startX = Math.floor(x);
+    const startY = Math.floor(y);
+
+    if (startX < 0 || startX >= canvas.width || startY < 0 || startY >= canvas.height) return;
+
+    const startIndex = (startY * canvas.width + startX) * 4;
+    const startR = data[startIndex];
+    const startG = data[startIndex + 1];
+    const startB = data[startIndex + 2];
+    const startA = data[startIndex + 3];
+
+    // Don't fill if already the same color
+    if (startR === fillColorRgb.r && startG === fillColorRgb.g && startB === fillColorRgb.b) return;
+
+    const stack: [number, number][] = [[startX, startY]];
+    const visited = new Set<string>();
+
+    while (stack.length > 0) {
+      const [px, py] = stack.pop()!;
+      const key = `${px},${py}`;
+
+      if (visited.has(key) || px < 0 || px >= canvas.width || py < 0 || py >= canvas.height) continue;
+      visited.add(key);
+
+      const index = (py * canvas.width + px) * 4;
+      const r = data[index];
+      const g = data[index + 1];
+      const b = data[index + 2];
+      const a = data[index + 3];
+
+      // Check if pixel matches start color
+      if (r !== startR || g !== startG || b !== startB || a !== startA) continue;
+
+      // Fill pixel
+      data[index] = fillColorRgb.r;
+      data[index + 1] = fillColorRgb.g;
+      data[index + 2] = fillColorRgb.b;
+      data[index + 3] = 255;
+
+      // Add neighbors to stack
+      stack.push([px + 1, py], [px - 1, py], [px, py + 1], [px, py - 1]);
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  function hexToRgb(hex: string): {r: number, g: number, b: number} | null {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : null;
+  }
 
   // Initialize canvases for all layers
   useEffect(() => {
@@ -106,15 +175,15 @@ export default function DrawCanvas() {
       return;
     }
 
-    // Non-drawing tools should not draw
-    const nonDrawingTools = ['zoom', 'select', 'lasso', 'wand', 'transform', 'crop', 'text', 'fill', 'gradient', 'shapes', 'line', 'smudge', 'clone'];
+    // Tools that don't draw on pointer down/move
+    const nonDrawingTools = ['zoom', 'select', 'lasso', 'wand', 'transform', 'crop', 'text'];
     if (nonDrawingTools.includes(activeToolId)) {
       console.log(`${activeToolId} tool selected - no drawing action`);
       return;
     }
 
-    // Only pencil, brush, eraser should draw
-    const drawingTools = ['pencil', 'brush', 'eraser'];
+    // All other tools should draw
+    const drawingTools = ['pencil', 'brush', 'eraser', 'fill', 'gradient', 'shapes', 'line', 'smudge', 'clone'];
     if (!drawingTools.includes(activeToolId)) {
       return;
     }
@@ -126,12 +195,36 @@ export default function DrawCanvas() {
     // Debug logging
     console.log(`Drawing with ${activeToolId} on layer ${activeLayerId}, color: ${primaryColor}, pos: ${x},${y}`);
 
-    ctx.save();
-    // Don't apply view transforms to the context - they're applied to the container
-    // ctx.translate(view.x, view.y);
-    // ctx.scale(view.scale, view.scale);
+    // Handle special tools that don't use traditional drawing
+    if (activeToolId === 'fill') {
+      // Flood fill at click point
+      fillArea(ctx, x, y, primaryColor, canvasSize);
+      return;
+    }
 
-    // Configure tool-specific drawing properties
+    if (activeToolId === 'line') {
+      // Start line drawing mode
+      isDrawingLine.current = true;
+      lineStart.current = { x, y };
+      // Save current canvas state for preview
+      const canvas = getActiveLayerCanvas();
+      linePreviewImageData.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      console.log(`Starting line at ${x}, ${y}`);
+      return;
+    }
+
+    if (activeToolId === 'shapes') {
+      // Start shape drawing mode - for now just draw a circle
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = primaryColor;
+      ctx.lineWidth = brushSize;
+      ctx.beginPath();
+      ctx.arc(x, y, brushSize * 2, 0, Math.PI * 2);
+      ctx.stroke();
+      return;
+    }
+
+    // Configure tool-specific drawing properties for brush-based tools
     if (activeToolId === 'eraser') {
       ctx.globalCompositeOperation = 'destination-out';
       ctx.strokeStyle = 'rgba(0,0,0,1)';
@@ -140,15 +233,36 @@ export default function DrawCanvas() {
     } else if (activeToolId === 'pencil') {
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = primaryColor;
-      ctx.lineCap = 'square'; // Hard edges for pencil
-      ctx.lineJoin = 'miter';
-      ctx.imageSmoothingEnabled = false; // Crisp pixels for pencil
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.imageSmoothingEnabled = true;
     } else if (activeToolId === 'brush') {
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = primaryColor;
-      ctx.lineCap = 'round'; // Soft edges for brush
+      ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.imageSmoothingEnabled = true;
+    } else if (activeToolId === 'smudge') {
+      // Smudge tool: sample colors and blend them
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = primaryColor;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.globalAlpha = 0.3; // Blend effect
+    } else if (activeToolId === 'clone') {
+      // Clone tool: copy from another area (simplified for now)
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = primaryColor;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+    } else if (activeToolId === 'gradient') {
+      // Gradient tool: create gradient brush
+      const gradient = ctx.createLinearGradient(x - brushSize, y - brushSize, x + brushSize, y + brushSize);
+      gradient.addColorStop(0, primaryColor);
+      gradient.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.strokeStyle = gradient;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
     } else {
       // Default behavior for other tools
       ctx.globalCompositeOperation = 'source-over';
@@ -157,16 +271,20 @@ export default function DrawCanvas() {
       ctx.lineJoin = 'round';
     }
 
-    ctx.lineWidth = brushSize;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
+    // Only start drawing path for brush-based tools
+    if (['pencil', 'brush', 'eraser', 'smudge', 'clone', 'gradient'].includes(activeToolId)) {
+      ctx.lineWidth = brushSize;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      isDrawing.current = true;
+    }
   }
 
   function onPointerMove(e: React.PointerEvent) {
-    if (!last.current) return;
+    if (!last.current && !isDrawingLine.current) return;
 
     // panning
-    if (isPanning.current) {
+    if (isPanning.current && last.current) {
       const dx = e.clientX - last.current.x;
       const dy = e.clientY - last.current.y;
       setView(v => ({ ...v, x: v.x + dx, y: v.y + dy }));
@@ -174,28 +292,60 @@ export default function DrawCanvas() {
       return;
     }
 
-    // drawing
     const ctx = getActiveLayerCtx();
-    ctx.save();
-    // Don't apply view transforms to the context - they're applied to the container
-    // ctx.translate(view.x, view.y);
-    // ctx.scale(view.scale, view.scale);
+    const { x, y } = toCanvasCoords(e.clientX, e.clientY);
 
-    // Apply same tool-specific settings as in onPointerDown
-    if (activeToolId === 'pencil') {
-      ctx.imageSmoothingEnabled = false;
-    } else if (activeToolId === 'brush') {
-      ctx.imageSmoothingEnabled = true;
+    // Handle line tool preview
+    if (isDrawingLine.current && lineStart.current && linePreviewImageData.current) {
+      // Restore canvas to state before preview
+      ctx.putImageData(linePreviewImageData.current, 0, 0);
+
+      // Draw preview line
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = primaryColor;
+      ctx.lineWidth = brushSize;
+      ctx.lineCap = 'round';
+      ctx.setLineDash([5, 5]); // Dashed preview
+      ctx.beginPath();
+      ctx.moveTo(lineStart.current.x, lineStart.current.y);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      ctx.setLineDash([]); // Reset line dash
+      return;
     }
 
-    const { x, y } = toCanvasCoords(e.clientX, e.clientY);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    ctx.restore();
+    // Regular brush drawing
+    if (isDrawing.current && last.current) {
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      last.current = { x, y };
+    }
   }
 
-  function onPointerUp() {
+  function onPointerUp(e: React.PointerEvent) {
+    // Handle line tool completion
+    if (isDrawingLine.current && lineStart.current) {
+      const ctx = getActiveLayerCtx();
+      const { x, y } = toCanvasCoords(e.clientX, e.clientY);
+
+      // Draw final line
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = primaryColor;
+      ctx.lineWidth = brushSize;
+      ctx.lineCap = 'round';
+      ctx.setLineDash([]); // Solid line
+      ctx.beginPath();
+      ctx.moveTo(lineStart.current.x, lineStart.current.y);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+
+      isDrawingLine.current = false;
+      lineStart.current = null;
+      linePreviewImageData.current = null;
+    }
+
     isPanning.current = false;
+    isDrawing.current = false;
     last.current = null;
   }
 
@@ -263,7 +413,13 @@ export default function DrawCanvas() {
         {activeToolId === 'pencil' && <span style={{ marginLeft: 8, color: '#10b981' }}>(P) DRAWS</span>}
         {activeToolId === 'brush' && <span style={{ marginLeft: 8, color: '#10b981' }}>(B) DRAWS</span>}
         {activeToolId === 'eraser' && <span style={{ marginLeft: 8, color: '#ef4444' }}>(E) ERASES</span>}
-        {!['pencil', 'brush', 'eraser'].includes(activeToolId) && <span style={{ marginLeft: 8, color: '#f59e0b' }}>NO DRAW</span>}
+        {activeToolId === 'smudge' && <span style={{ marginLeft: 8, color: '#10b981' }}>SMUDGES</span>}
+        {activeToolId === 'fill' && <span style={{ marginLeft: 8, color: '#10b981' }}>(G) FILLS</span>}
+        {activeToolId === 'gradient' && <span style={{ marginLeft: 8, color: '#10b981' }}>GRADIENT</span>}
+        {activeToolId === 'shapes' && <span style={{ marginLeft: 8, color: '#10b981' }}>(U) SHAPES</span>}
+        {activeToolId === 'line' && <span style={{ marginLeft: 8, color: '#10b981' }}>(L) LINES</span>}
+        {activeToolId === 'clone' && <span style={{ marginLeft: 8, color: '#10b981' }}>CLONES</span>}
+        {['zoom', 'select', 'lasso', 'wand', 'transform', 'crop', 'text'].includes(activeToolId) && <span style={{ marginLeft: 8, color: '#f59e0b' }}>NO DRAW</span>}
         <span style={{ margin: '0 8px' }}>·</span>
         <span>Layer: <span className="kbd" style={{ color: '#3b82f6' }}>{layers.find(l => l.id === activeLayerId)?.name || activeLayerId}</span></span>
         <span style={{ margin: '0 8px' }}>·</span>
