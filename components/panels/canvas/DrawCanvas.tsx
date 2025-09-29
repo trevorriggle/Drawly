@@ -56,12 +56,18 @@ export default function DrawCanvas() {
       if (index === 0) {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
+
+        // Test drawing - draw a small circle to verify canvas works
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath();
+        ctx.arc(100, 100, 20, 0, Math.PI * 2);
+        ctx.fill();
       }
 
       layerCanvasRefs.current.set(layer.id, canvas);
       container.appendChild(canvas);
     });
-  }, [layers, activeLayerId]);
+  }, [layers, activeLayerId, canvasSize.width, canvasSize.height]);
 
   function getActiveLayerCtx() {
     const canvas = layerCanvasRefs.current.get(activeLayerId);
@@ -84,7 +90,12 @@ export default function DrawCanvas() {
   }
 
   function onPointerDown(e: React.PointerEvent) {
-    (e.target as HTMLCanvasElement).setPointerCapture(e.pointerId);
+    e.preventDefault();
+    // Get the active canvas for pointer capture
+    const activeCanvas = getActiveLayerCanvas();
+    if (activeCanvas) {
+      activeCanvas.setPointerCapture(e.pointerId);
+    }
 
     if (e.button === 1 || e.button === 0 && (e.nativeEvent as any).isPrimary === false) return; // ignore middle/secondary
 
@@ -112,9 +123,13 @@ export default function DrawCanvas() {
     const { x, y } = toCanvasCoords(e.clientX, e.clientY);
     last.current = { x, y };
 
+    // Debug logging
+    console.log(`Drawing with ${activeToolId} on layer ${activeLayerId}, color: ${primaryColor}, pos: ${x},${y}`);
+
     ctx.save();
-    ctx.translate(view.x, view.y);
-    ctx.scale(view.scale, view.scale);
+    // Don't apply view transforms to the context - they're applied to the container
+    // ctx.translate(view.x, view.y);
+    // ctx.scale(view.scale, view.scale);
 
     // Configure tool-specific drawing properties
     if (activeToolId === 'eraser') {
@@ -162,8 +177,9 @@ export default function DrawCanvas() {
     // drawing
     const ctx = getActiveLayerCtx();
     ctx.save();
-    ctx.translate(view.x, view.y);
-    ctx.scale(view.scale, view.scale);
+    // Don't apply view transforms to the context - they're applied to the container
+    // ctx.translate(view.x, view.y);
+    // ctx.scale(view.scale, view.scale);
 
     // Apply same tool-specific settings as in onPointerDown
     if (activeToolId === 'pencil') {
