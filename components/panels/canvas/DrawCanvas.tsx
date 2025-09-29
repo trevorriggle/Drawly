@@ -116,15 +116,24 @@ export default function DrawCanvas() {
       canvas.style.touchAction = 'none';
       canvas.style.pointerEvents = layer.id === activeLayerId ? 'auto' : 'none';
       canvas.style.visibility = layer.visible ? 'visible' : 'hidden';
-      canvas.style.zIndex = String(index);
+      canvas.style.zIndex = String(index + 1); // Start at 1 to leave space for background
 
       const ctx = canvas.getContext('2d')!;
       ctx.scale(dpr, dpr);
 
-      // Background only for bottom layer
+      // Set up canvas for transparency support
       if (index === 0) {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
+        // Bottom layer gets a white background but as a separate element
+        // Canvas itself stays transparent for proper erasing
+        const bgDiv = document.createElement('div');
+        bgDiv.style.position = 'absolute';
+        bgDiv.style.top = '0';
+        bgDiv.style.left = '0';
+        bgDiv.style.width = canvasSize.width + 'px';
+        bgDiv.style.height = canvasSize.height + 'px';
+        bgDiv.style.backgroundColor = '#ffffff';
+        bgDiv.style.zIndex = '-1';
+        container.appendChild(bgDiv);
 
         // Test drawing - draw a small circle to verify canvas works
         ctx.fillStyle = '#ff0000';
@@ -227,9 +236,10 @@ export default function DrawCanvas() {
     // Configure tool-specific drawing properties for brush-based tools
     if (activeToolId === 'eraser') {
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.strokeStyle = 'rgba(0,0,0,1)';
+      ctx.strokeStyle = 'rgba(0,0,0,1)'; // Color doesn't matter for destination-out
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
+      ctx.globalAlpha = 1; // Ensure full erase strength
     } else if (activeToolId === 'pencil') {
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = primaryColor;
