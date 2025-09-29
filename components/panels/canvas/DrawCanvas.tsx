@@ -214,13 +214,9 @@ export default function DrawCanvas() {
     }
 
     // Tools that truly don't draw
-    const nonDrawingTools = ['select', 'lasso', 'wand', 'transform', 'crop', 'pan'];
-    if (nonDrawingTools.includes(activeToolId)) {
-      if (activeToolId === 'pan') {
-        // Pan tool - handled above
-      } else {
-        console.log(`${activeToolId} tool selected - no drawing action`);
-      }
+    const nonDrawingTools = ['select', 'lasso', 'wand', 'transform', 'crop', 'pan'] as const;
+    if (nonDrawingTools.includes(activeToolId as any)) {
+      console.log(`${activeToolId} tool selected - no drawing action`);
       return;
     }
 
