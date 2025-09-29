@@ -21,9 +21,9 @@ type Action =
   | { type: 'SET_ACTIVE_LAYER'; id: string };
 
 const initial: State = {
-  activeToolId: 'brush',
-  primaryColor: '#1f9cff',
-  brushSize: 8,
+  activeToolId: 'pencil',
+  primaryColor: '#1f2937',
+  brushSize: 4,
   layers: [{ id: 'layer-1', name: 'Layer 1', visible: true }],
   activeLayerId: 'layer-1'
 };

@@ -13,7 +13,7 @@ import { useDrawly } from '@/context/DrawlyProvider';
  * This is intentionally small but stable so the UI can be built around it.
  */
 export default function DrawCanvas() {
-  const { activeToolId, primaryColor, brushSize } = useDrawly();
+  const { activeToolId, primaryColor, brushSize, setActiveToolId } = useDrawly();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
@@ -73,15 +73,33 @@ export default function DrawCanvas() {
     ctx.save();
     ctx.translate(view.x, view.y);
     ctx.scale(view.scale, view.scale);
+
+    // Configure tool-specific drawing properties
     if (activeToolId === 'eraser') {
       ctx.globalCompositeOperation = 'destination-out';
       ctx.strokeStyle = 'rgba(0,0,0,1)';
-    } else {
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+    } else if (activeToolId === 'pencil') {
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = primaryColor;
+      ctx.lineCap = 'square'; // Hard edges for pencil
+      ctx.lineJoin = 'miter';
+      ctx.imageSmoothingEnabled = false; // Crisp pixels for pencil
+    } else if (activeToolId === 'brush') {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = primaryColor;
+      ctx.lineCap = 'round'; // Soft edges for brush
+      ctx.lineJoin = 'round';
+      ctx.imageSmoothingEnabled = true;
+    } else {
+      // Default behavior for other tools
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = primaryColor;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
     }
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+
     ctx.lineWidth = brushSize;
     ctx.beginPath();
     ctx.moveTo(x, y);
@@ -104,6 +122,14 @@ export default function DrawCanvas() {
     ctx.save();
     ctx.translate(view.x, view.y);
     ctx.scale(view.scale, view.scale);
+
+    // Apply same tool-specific settings as in onPointerDown
+    if (activeToolId === 'pencil') {
+      ctx.imageSmoothingEnabled = false;
+    } else if (activeToolId === 'brush') {
+      ctx.imageSmoothingEnabled = true;
+    }
+
     const { x, y } = toCanvasCoords(e.clientX, e.clientY);
     ctx.lineTo(x, y);
     ctx.stroke();
@@ -121,12 +147,28 @@ export default function DrawCanvas() {
     const d = (e: KeyboardEvent) => {
       if (e.code === 'Space') { setPanKey(true); (e as any).isPanActive = true; }
       if (e.code === 'KeyZ' && (e.ctrlKey || e.metaKey)) e.preventDefault(); // stop browser undo zoom
+
+      // Tool shortcuts (only if no modifier keys)
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        switch (e.code) {
+          case 'KeyP': e.preventDefault(); setActiveToolId('pencil'); break;
+          case 'KeyB': e.preventDefault(); setActiveToolId('brush'); break;
+          case 'KeyE': e.preventDefault(); setActiveToolId('eraser'); break;
+          case 'KeyV': e.preventDefault(); setActiveToolId('select'); break;
+          case 'KeyZ': e.preventDefault(); setActiveToolId('zoom'); break;
+          case 'KeyG': e.preventDefault(); setActiveToolId('fill'); break;
+          case 'KeyT': e.preventDefault(); setActiveToolId('text'); break;
+          case 'KeyL': e.preventDefault(); setActiveToolId('line'); break;
+          case 'KeyU': e.preventDefault(); setActiveToolId('shapes'); break;
+          case 'KeyQ': e.preventDefault(); setActiveToolId('lasso'); break;
+        }
+      }
     };
     const u = (e: KeyboardEvent) => { if (e.code === 'Space') setPanKey(false); };
     window.addEventListener('keydown', d);
     window.addEventListener('keyup', u);
     return () => { window.removeEventListener('keydown', d); window.removeEventListener('keyup', u); };
-  }, []);
+  }, [setActiveToolId]);
 
   // wheel zoom with ctrl/cmd
   function onWheel(e: React.WheelEvent) {
@@ -157,8 +199,15 @@ export default function DrawCanvas() {
         onPointerCancel={onPointerUp}
         onWheel={onWheel}
       />
-      <div style={{ position:'absolute', left:12, bottom:12, opacity:.7, fontSize:12 }}>
-        Tool: <span className="kbd">{activeToolId}</span> · Size <span className="kbd">{brushSize}</span> · Color <span className="kbd">{primaryColor}</span>
+      <div style={{ position:'absolute', left:12, bottom:12, opacity:.8, fontSize:12, background: 'rgba(0,0,0,0.8)', color: 'white', padding: '8px 12px', borderRadius: 6 }}>
+        <span style={{ fontWeight: 600 }}>{activeToolId.toUpperCase()}</span>
+        {activeToolId === 'pencil' && <span style={{ marginLeft: 8 }}>(P)</span>}
+        {activeToolId === 'brush' && <span style={{ marginLeft: 8 }}>(B)</span>}
+        {activeToolId === 'eraser' && <span style={{ marginLeft: 8 }}>(E)</span>}
+        <span style={{ margin: '0 8px' }}>·</span>
+        <span>Size: <span className="kbd">{brushSize}px</span></span>
+        <span style={{ margin: '0 8px' }}>·</span>
+        <span>Color: <span className="kbd">{primaryColor}</span></span>
       </div>
     </div>
   );
