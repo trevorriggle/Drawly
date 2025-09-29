@@ -1,6 +1,6 @@
 'use client';
 
-import DrawCanvas from '../../components/canvas/DrawCanvas';
+import DrawCanvas from '../../components/panels/canvas/DrawCanvas';
 import ColorPanel from '../../components/panels/ColorPanel';
 import LayersPanel from '../../components/panels/LayersPanel';
 import ToolButton from '../../components/ToolButton';

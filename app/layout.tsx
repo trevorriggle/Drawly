@@ -3,7 +3,7 @@ import '../styles/globals.css';
 
 import { DrawlyProvider } from '../context/DrawlyProvider';
 import AppShell from '../components/AppShell';
-import FloatingBuddy from '../components/FloatingBuddy';
+import FloatingBuddy from '../components/floatingbuddy';
 
 export const metadata: Metadata = {
   title: 'Drawly',
