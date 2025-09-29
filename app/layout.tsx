@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
-import '@/styles/globals.css';
+import '../styles/globals.css';
 
-import { DrawlyProvider } from '@/context/DrawlyProvider';
-import AppShell from '@/components/AppShell';
-import FloatingBuddy from '@/components/FloatingBuddy';
+import { DrawlyProvider } from '../context/DrawlyProvider';
+import AppShell from '../components/AppShell';
+import FloatingBuddy from '../components/FloatingBuddy';
 
 export const metadata: Metadata = {
   title: 'Drawly',
