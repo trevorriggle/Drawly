@@ -13,7 +13,8 @@ import { useDrawly } from '@/context/DrawlyProvider';
  * This is intentionally small but stable so the UI can be built around it.
  */
 export default function DrawCanvas() {
-  const { activeToolId, primaryColor, brushSize, setActiveToolId, layers, activeLayerId } = useDrawly();
+  const ctx = useDrawly();
+  const { activeToolId, primaryColor, brushSize, setActiveToolId, layers, activeLayerId } = ctx;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const layerCanvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
@@ -27,6 +28,40 @@ export default function DrawCanvas() {
 
   const [canvasSize, setCanvasSize] = useState({ width: 1600, height: 1000 });
   const [mousePos, setMousePos] = useState<{x: number, y: number} | null>(null);
+
+  // Export canvas function
+  useEffect(() => {
+    if (ctx.exportCanvas) return; // Already set
+
+    ctx.exportCanvas = () => {
+      // Create a temporary canvas to combine all layers
+      const tempCanvas = document.createElement('canvas');
+      const firstCanvas = layerCanvasRefs.current.values().next().value;
+      if (!firstCanvas) return null;
+
+      tempCanvas.width = firstCanvas.width;
+      tempCanvas.height = firstCanvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      if (!tempCtx) return null;
+
+      // Fill with white background
+      tempCtx.fillStyle = 'white';
+      tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+      // Draw all visible layers in order
+      layers.forEach((layer) => {
+        if (!layer.visible) return;
+        const canvas = layerCanvasRefs.current.get(layer.id);
+        if (canvas) {
+          tempCtx.globalAlpha = layer.opacity;
+          tempCtx.drawImage(canvas, 0, 0);
+        }
+      });
+
+      // Export as base64 PNG (remove data:image/png;base64, prefix)
+      return tempCanvas.toDataURL('image/png').split(',')[1];
+    };
+  }, [layers, ctx]);
 
   // Update canvas size to fill container
   useEffect(() => {

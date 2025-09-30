@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import NewProjectQuestionnaire from '../components/NewProjectQuestionnaire';
 import type { QuestionnaireAnswers } from '../components/NewProjectQuestionnaire';
+import { useDrawly } from '../context/DrawlyProvider';
 
 export default function HomePage() {
   const [showQuestionnaire, setShowQuestionnaire] = useState(false);
   const router = useRouter();
+  const { setQuestionnaireAnswers } = useDrawly();
   return (
     <div style={{
       display: 'flex',
@@ -52,8 +54,7 @@ export default function HomePage() {
       {showQuestionnaire && (
         <NewProjectQuestionnaire
           onComplete={(answers: QuestionnaireAnswers) => {
-            // TODO: Store answers in context/state
-            console.log('Questionnaire answers:', answers);
+            setQuestionnaireAnswers(answers);
             router.push('/studio');
           }}
           onGoToProjects={() => {

@@ -4,12 +4,22 @@ import React, { createContext, useContext, useMemo, useReducer } from 'react';
 import type { ToolId } from '@/data/tools';
 import { IconRegistryProvider } from '@/lib/icons-registry';
 
+export type QuestionnaireAnswers = {
+  subject: string;
+  style: string;
+  artists: string;
+  techniques: string;
+  feedbackFocus: string;
+  additionalContext: string;
+};
+
 type State = {
   activeToolId: ToolId;
   primaryColor: string;
   brushSize: number;
   layers: { id: string; name: string; visible: boolean; opacity: number }[];
   activeLayerId: string;
+  questionnaireAnswers: QuestionnaireAnswers | null;
 };
 
 type Action =
@@ -19,14 +29,16 @@ type Action =
   | { type: 'ADD_LAYER'; name?: string }
   | { type: 'TOGGLE_LAYER_VIS'; id: string }
   | { type: 'SET_LAYER_OPACITY'; id: string; opacity: number }
-  | { type: 'SET_ACTIVE_LAYER'; id: string };
+  | { type: 'SET_ACTIVE_LAYER'; id: string }
+  | { type: 'SET_QUESTIONNAIRE'; answers: QuestionnaireAnswers };
 
 const initial: State = {
   activeToolId: 'pencil',
   primaryColor: '#1f2937',
   brushSize: 4,
   layers: [{ id: 'background', name: 'Background', visible: true, opacity: 1 }],
-  activeLayerId: 'background'
+  activeLayerId: 'background',
+  questionnaireAnswers: null
 };
 
 function reducer(state: State, action: Action): State {
@@ -45,6 +57,7 @@ function reducer(state: State, action: Action): State {
       return { ...state, layers: state.layers.map(l => l.id === action.id ? { ...l, opacity: action.opacity } : l) };
     }
     case 'SET_ACTIVE_LAYER': return { ...state, activeLayerId: action.id };
+    case 'SET_QUESTIONNAIRE': return { ...state, questionnaireAnswers: action.answers };
     default: return state;
   }
 }
@@ -57,6 +70,8 @@ const Ctx = createContext<(State & {
   toggleLayer: (id: string) => void;
   setLayerOpacity: (id: string, opacity: number) => void;
   setActiveLayer: (id: string) => void;
+  setQuestionnaireAnswers: (answers: QuestionnaireAnswers) => void;
+  exportCanvas?: () => string | null;
 }) | null>(null);
 
 export function DrawlyProvider({ children }: { children: React.ReactNode }) {
@@ -70,7 +85,8 @@ export function DrawlyProvider({ children }: { children: React.ReactNode }) {
     addLayer: (name?: string) => dispatch({ type: 'ADD_LAYER', name }),
     toggleLayer: (id: string) => dispatch({ type: 'TOGGLE_LAYER_VIS', id }),
     setLayerOpacity: (id: string, opacity: number) => dispatch({ type: 'SET_LAYER_OPACITY', id, opacity }),
-    setActiveLayer: (id: string) => dispatch({ type: 'SET_ACTIVE_LAYER', id })
+    setActiveLayer: (id: string) => dispatch({ type: 'SET_ACTIVE_LAYER', id }),
+    setQuestionnaireAnswers: (answers: QuestionnaireAnswers) => dispatch({ type: 'SET_QUESTIONNAIRE', answers })
   }), [state]);
 
   return (
