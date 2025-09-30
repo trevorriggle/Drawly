@@ -17,10 +17,11 @@ type State = {
   activeToolId: ToolId;
   primaryColor: string;
   brushSize: number;
-  layers: { id: string; name: string; visible: boolean; opacity: number }[];
+  layers: { id: string; name: string; visible: boolean; opacity: number; imageData?: HTMLImageElement }[];
   activeLayerId: string;
   questionnaireAnswers: QuestionnaireAnswers | null;
   feedback: string | null;
+  uploadedImageForLayer: { layerId: string; image: HTMLImageElement } | null;
 };
 
 type Action =
@@ -32,7 +33,8 @@ type Action =
   | { type: 'SET_LAYER_OPACITY'; id: string; opacity: number }
   | { type: 'SET_ACTIVE_LAYER'; id: string }
   | { type: 'SET_QUESTIONNAIRE'; answers: QuestionnaireAnswers }
-  | { type: 'SET_FEEDBACK'; feedback: string | null };
+  | { type: 'SET_FEEDBACK'; feedback: string | null }
+  | { type: 'SET_UPLOADED_IMAGE'; layerId: string; image: HTMLImageElement };
 
 const initial: State = {
   activeToolId: 'pencil',
@@ -41,7 +43,8 @@ const initial: State = {
   layers: [{ id: 'background', name: 'Background', visible: true, opacity: 1 }],
   activeLayerId: 'background',
   questionnaireAnswers: null,
-  feedback: null
+  feedback: null,
+  uploadedImageForLayer: null
 };
 
 function reducer(state: State, action: Action): State {
@@ -62,6 +65,7 @@ function reducer(state: State, action: Action): State {
     case 'SET_ACTIVE_LAYER': return { ...state, activeLayerId: action.id };
     case 'SET_QUESTIONNAIRE': return { ...state, questionnaireAnswers: action.answers };
     case 'SET_FEEDBACK': return { ...state, feedback: action.feedback };
+    case 'SET_UPLOADED_IMAGE': return { ...state, uploadedImageForLayer: { layerId: action.layerId, image: action.image } };
     default: return state;
   }
 }
@@ -76,6 +80,7 @@ const Ctx = createContext<(State & {
   setActiveLayer: (id: string) => void;
   setQuestionnaireAnswers: (answers: QuestionnaireAnswers) => void;
   setFeedback: (feedback: string | null) => void;
+  setUploadedImage: (layerId: string, image: HTMLImageElement) => void;
   registerExportCanvas: (fn: () => string | null) => void;
   getExportCanvas: () => (() => string | null) | null;
 }) | null>(null);
@@ -95,6 +100,7 @@ export function DrawlyProvider({ children }: { children: React.ReactNode }) {
     setActiveLayer: (id: string) => dispatch({ type: 'SET_ACTIVE_LAYER', id }),
     setQuestionnaireAnswers: (answers: QuestionnaireAnswers) => dispatch({ type: 'SET_QUESTIONNAIRE', answers }),
     setFeedback: (feedback: string | null) => dispatch({ type: 'SET_FEEDBACK', feedback }),
+    setUploadedImage: (layerId: string, image: HTMLImageElement) => dispatch({ type: 'SET_UPLOADED_IMAGE', layerId, image }),
     registerExportCanvas: (fn: () => string | null) => {
       exportCanvasRef.current = fn;
     },

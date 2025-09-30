@@ -14,7 +14,7 @@ import { useDrawly } from '@/context/DrawlyProvider';
  */
 export default function DrawCanvas() {
   const drawlyContext = useDrawly();
-  const { activeToolId, primaryColor, brushSize, setActiveToolId, layers, activeLayerId } = drawlyContext;
+  const { activeToolId, primaryColor, brushSize, setActiveToolId, layers, activeLayerId, uploadedImageForLayer } = drawlyContext;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const layerCanvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
@@ -227,6 +227,34 @@ export default function DrawCanvas() {
       canvas.style.zIndex = String(index + 1);
     });
   }, [layers, activeLayerId, canvasSize.width, canvasSize.height]);
+
+  // Render uploaded image on layer
+  useEffect(() => {
+    if (!uploadedImageForLayer) return;
+
+    const canvas = layerCanvasRefs.current.get(uploadedImageForLayer.layerId);
+    if (!canvas) {
+      console.log('Canvas not found for uploaded image');
+      return;
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const img = uploadedImageForLayer.image;
+
+    // Calculate scaling to fit image in canvas while maintaining aspect ratio
+    const scale = Math.min(canvasSize.width / img.width, canvasSize.height / img.height);
+    const scaledWidth = img.width * scale;
+    const scaledHeight = img.height * scale;
+    const x = (canvasSize.width - scaledWidth) / 2;
+    const y = (canvasSize.height - scaledHeight) / 2;
+
+    ctx.clearRect(0, 0, canvasSize.width, canvasSize.height);
+    ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+
+    console.log(`Rendered uploaded image on layer ${uploadedImageForLayer.layerId}`);
+  }, [uploadedImageForLayer, canvasSize.width, canvasSize.height]);
 
   function getActiveLayerCtx() {
     const canvas = layerCanvasRefs.current.get(activeLayerId);

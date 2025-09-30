@@ -9,9 +9,9 @@ import { useDrawly } from '../../context/DrawlyProvider';
 import { DEFAULT_TOOLS } from '../../data/tools';
 
 export default function StudioPage() {
-  const { activeToolId, setActiveToolId, getExportCanvas, questionnaireAnswers, setFeedback } = useDrawly();
+  const { activeToolId, setActiveToolId, getExportCanvas, questionnaireAnswers, setFeedback, addLayer, setUploadedImage, layers } = useDrawly();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploadedImageBase64, setUploadedImageBase64] = useState<string | null>(null);
 
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -20,7 +20,23 @@ export default function StudioPage() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const base64 = event.target?.result as string;
-      setUploadedImage(base64.split(',')[1]); // Store base64 without prefix
+      setUploadedImageBase64(base64.split(',')[1]); // Store base64 without prefix for API
+
+      // Create image object to render on canvas
+      const img = new Image();
+      img.onload = () => {
+        // Add a new layer for the uploaded image
+        addLayer(`Uploaded`);
+
+        // Wait a tick for the layer to be created, then set the image
+        setTimeout(() => {
+          const newLayer = layers[layers.length]; // Get the newly created layer
+          if (newLayer) {
+            setUploadedImage(newLayer.id, img);
+          }
+        }, 50);
+      };
+      img.src = base64;
     };
     reader.readAsDataURL(file);
   };
@@ -54,8 +70,8 @@ export default function StudioPage() {
     let imageBase64: string | null = null;
 
     // Use uploaded image if available, otherwise export canvas
-    if (uploadedImage) {
-      imageBase64 = uploadedImage;
+    if (uploadedImageBase64) {
+      imageBase64 = uploadedImageBase64;
     } else {
       const exportCanvas = getExportCanvas();
       if (!exportCanvas) {
@@ -193,7 +209,7 @@ export default function StudioPage() {
       </div>
 
       {/* Upload preview indicator */}
-      {uploadedImage && (
+      {uploadedImageBase64 && (
         <div style={{
           position: 'fixed',
           top: 80,
