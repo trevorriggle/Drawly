@@ -14,7 +14,7 @@ import { useDrawly } from '@/context/DrawlyProvider';
  */
 export default function DrawCanvas() {
   const drawlyContext = useDrawly();
-  const { activeToolId, primaryColor, brushSize, setActiveToolId, layers, activeLayerId, uploadedImageForLayer } = drawlyContext;
+  const { activeToolId, primaryColor, brushSize, setActiveToolId, layers, activeLayerId, uploadedImageForLayer, updateLayerImagePosition } = drawlyContext;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const layerCanvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
@@ -28,6 +28,8 @@ export default function DrawCanvas() {
 
   const [canvasSize, setCanvasSize] = useState({ width: 1600, height: 1000 });
   const [mousePos, setMousePos] = useState<{x: number, y: number} | null>(null);
+  const [movingLayer, setMovingLayer] = useState<string | null>(null);
+  const [moveStartPos, setMoveStartPos] = useState<{x: number, y: number} | null>(null);
 
   // Export canvas function - register it once
   useEffect(() => {
@@ -174,7 +176,7 @@ export default function DrawCanvas() {
     const container = containerRef.current;
     if (!container) return;
 
-    const dpr = window.devicePixelRatio || 1; // Use native device pixel ratio
+    const dpr = (window.devicePixelRatio || 1) * 4; // 4x resolution for good quality
 
     // Add white background once
     if (!container.querySelector('.bg')) {
@@ -254,12 +256,26 @@ export default function DrawCanvas() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Calculate scaling to fit image in canvas while maintaining aspect ratio
-    const scale = Math.min(canvasSize.width / img.width, canvasSize.height / img.height);
-    const scaledWidth = img.width * scale;
-    const scaledHeight = img.height * scale;
-    const x = (canvasSize.width - scaledWidth) / 2;
-    const y = (canvasSize.height - scaledHeight) / 2;
+    // Find the layer to get stored position
+    const layer = layers.find(l => layerCanvasRefs.current.get(l.id) === canvas);
+    let x, y, scaledWidth, scaledHeight;
+
+    if (layer?.imagePosition) {
+      // Use stored position
+      ({ x, y, width: scaledWidth, height: scaledHeight } = layer.imagePosition);
+    } else {
+      // Calculate initial centering
+      const scale = Math.min(canvasSize.width / img.width, canvasSize.height / img.height);
+      scaledWidth = img.width * scale;
+      scaledHeight = img.height * scale;
+      x = (canvasSize.width - scaledWidth) / 2;
+      y = (canvasSize.height - scaledHeight) / 2;
+
+      // Store initial position
+      if (layer) {
+        updateLayerImagePosition(layer.id, { x, y, width: scaledWidth, height: scaledHeight });
+      }
+    }
 
     // Clear and draw
     ctx.save();
@@ -331,8 +347,28 @@ export default function DrawCanvas() {
       return;
     }
 
+    // Handle select/move tool
+    if (activeToolId === 'select') {
+      const { x, y } = toCanvasCoords(e.clientX, e.clientY);
+
+      // Check if clicking on an uploaded image
+      for (const layer of layers) {
+        if (!layer.visible || !layer.imagePosition) continue;
+
+        const pos = layer.imagePosition;
+        if (x >= pos.x && x <= pos.x + pos.width && y >= pos.y && y <= pos.y + pos.height) {
+          console.log(`Selected layer ${layer.id}`);
+          setMovingLayer(layer.id);
+          setMoveStartPos({ x, y });
+          last.current = { x: e.clientX, y: e.clientY };
+          return;
+        }
+      }
+      return;
+    }
+
     // Tools that truly don't draw
-    const nonDrawingTools = ['select', 'lasso', 'wand', 'transform', 'crop', 'pan'] as const;
+    const nonDrawingTools = ['lasso', 'wand', 'transform', 'crop', 'pan'] as const;
     if (nonDrawingTools.includes(activeToolId as any)) {
       console.log(`${activeToolId} tool selected - no drawing action`);
       return;
@@ -448,7 +484,36 @@ export default function DrawCanvas() {
       setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
     }
 
-    if (!last.current && !isDrawingLine.current) return;
+    if (!last.current && !isDrawingLine.current && !movingLayer) return;
+
+    // moving image
+    if (movingLayer && last.current && moveStartPos) {
+      const { x, y } = toCanvasCoords(e.clientX, e.clientY);
+      const layer = layers.find(l => l.id === movingLayer);
+
+      if (layer?.imagePosition) {
+        const dx = x - moveStartPos.x;
+        const dy = y - moveStartPos.y;
+
+        updateLayerImagePosition(movingLayer, {
+          x: layer.imagePosition.x + dx,
+          y: layer.imagePosition.y + dy,
+          width: layer.imagePosition.width,
+          height: layer.imagePosition.height
+        });
+
+        setMoveStartPos({ x, y });
+
+        // Re-render the layer
+        if (uploadedImageForLayer?.layerId === movingLayer) {
+          const canvas = layerCanvasRefs.current.get(movingLayer);
+          if (canvas) {
+            renderImageToCanvas(canvas, uploadedImageForLayer.image);
+          }
+        }
+      }
+      return;
+    }
 
     // panning
     if (isPanning.current && last.current) {
@@ -500,6 +565,14 @@ export default function DrawCanvas() {
   }
 
   function onPointerUp(e: React.PointerEvent) {
+    // Stop moving
+    if (movingLayer) {
+      setMovingLayer(null);
+      setMoveStartPos(null);
+      last.current = null;
+      return;
+    }
+
     // Handle line/shape tool completion
     if (isDrawingLine.current && lineStart.current) {
       const ctx = getActiveLayerCtx();

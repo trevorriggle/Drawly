@@ -25,7 +25,7 @@ export const DEFAULT_TOOLS: ToolDef[] = [
   { id: 'line',      label: 'Line/Curve',icon: 'line',     key: 'L', group: 'draw' },
   { id: 'smudge',    label: 'Smudge',    icon: 'smudge',   group: 'edit' },
   { id: 'clone',     label: 'Clone',     icon: 'clone',    group: 'edit' },
-  { id: 'select',    label: 'Move/Select', icon: 'select', key: 'V', group: 'select' },
+  { id: 'select',    label: 'Move/Select', icon: 'cursor', key: 'V', group: 'select' },
   { id: 'lasso',     label: 'Lasso',     icon: 'lasso',    key: 'Q', group: 'select' },
   { id: 'wand',      label: 'Magic Wand',icon: 'wand',     group: 'select' },
   { id: 'transform', label: 'Transform', icon: 'transform',group: 'edit' },
