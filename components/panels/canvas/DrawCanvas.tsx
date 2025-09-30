@@ -13,8 +13,8 @@ import { useDrawly } from '@/context/DrawlyProvider';
  * This is intentionally small but stable so the UI can be built around it.
  */
 export default function DrawCanvas() {
-  const ctx = useDrawly();
-  const { activeToolId, primaryColor, brushSize, setActiveToolId, layers, activeLayerId } = ctx;
+  const drawlyContext = useDrawly();
+  const { activeToolId, primaryColor, brushSize, setActiveToolId, layers, activeLayerId } = drawlyContext;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const layerCanvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
@@ -29,11 +29,9 @@ export default function DrawCanvas() {
   const [canvasSize, setCanvasSize] = useState({ width: 1600, height: 1000 });
   const [mousePos, setMousePos] = useState<{x: number, y: number} | null>(null);
 
-  // Export canvas function
+  // Export canvas function - set it up once
   useEffect(() => {
-    if (ctx.exportCanvas) return; // Already set
-
-    ctx.exportCanvas = () => {
+    const exportFunc = () => {
       // Create a temporary canvas to combine all layers
       const tempCanvas = document.createElement('canvas');
       const firstCanvas = layerCanvasRefs.current.values().next().value;
@@ -61,7 +59,10 @@ export default function DrawCanvas() {
       // Export as base64 PNG (remove data:image/png;base64, prefix)
       return tempCanvas.toDataURL('image/png').split(',')[1];
     };
-  }, [layers, ctx]);
+
+    // Assign to context
+    (drawlyContext as any).exportCanvas = exportFunc;
+  }, [layers, drawlyContext]);
 
   // Update canvas size to fill container
   useEffect(() => {
