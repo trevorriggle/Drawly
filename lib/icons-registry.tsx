@@ -6,7 +6,7 @@ import React, { createContext, useContext, ReactNode } from 'react';
 export type IconToken =
   | "pencil" | "brush" | "eraser" | "fill" | "gradient"
   | "shapes" | "line" | "smudge" | "clone"
-  | "select" | "lasso" | "wand" | "transform" | "crop" | "zoom" | "hand"
+  | "select" | "lasso" | "wand" | "transform" | "crop" | "zoom" | "hand" | "cursor"
   | "text" | "layers" | "color" | "undo" | "redo";
 
 export type IconMap = Record<IconToken, React.FC<React.SVGProps<SVGSVGElement>>>;
@@ -23,6 +23,7 @@ const Def = {
   smudge: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><path d="M3 17c5-2 10-4 18-6-2 6-10 8-18 6z" /></svg>),
   clone: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><rect x="7" y="7" width="10" height="10" rx="2"/><rect x="3" y="3" width="10" height="10" rx="2"/></svg>),
   select: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><path d="M3 3h6v2H5v4H3V3zm12 0h6v6h-2V5h-4V3zM3 15h2v4h4v2H3v-6zm16 0h2v6h-6v-2h4v-4z"/></svg>),
+  cursor: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><path d="M3 3v18l6-6 3 6 3-1.5-3-6h9L3 3z" fill="currentColor"/></svg>),
   lasso: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><path d="M4 10c0-3 3-6 8-6s8 3 8 6-3 6-8 6c-2 0-4-.5-5.5-1.5V20" fill="none" stroke="currentColor" strokeWidth="2"/></svg>),
   wand: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><path d="M3 21 21 3M15 3h3M18 6v3M6 18v3M3 15h3" stroke="currentColor" strokeWidth="2" fill="none"/></svg>),
   transform: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><rect x="6" y="6" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2"/><path d="M6 10h4V6" stroke="currentColor" strokeWidth="2"/></svg>),

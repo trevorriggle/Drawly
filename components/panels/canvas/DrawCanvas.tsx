@@ -321,10 +321,10 @@ export default function DrawCanvas() {
       activeCanvas.setPointerCapture(e.pointerId);
     }
 
-    if (e.button === 1 || e.button === 0 && (e.nativeEvent as any).isPrimary === false) return; // ignore middle/secondary
+    if (e.button === 1) return; // ignore middle button
 
-    // Handle panning (spacebar + drag OR pan tool)
-    if (panKey || activeToolId === 'pan') {
+    // Handle panning (right click, spacebar + drag, OR pan tool)
+    if (e.button === 2 || panKey || activeToolId === 'pan') {
       isPanning.current = true;
       last.current = { x: e.clientX, y: e.clientY };
       return;
@@ -681,6 +681,7 @@ export default function DrawCanvas() {
         onPointerCancel={onPointerUp}
         onPointerLeave={() => setMousePos(null)}
         onWheel={onWheel}
+        onContextMenu={(e) => e.preventDefault()}
       />
       {/* Brush size cursor preview */}
       {mousePos && ['pencil', 'brush', 'eraser'].includes(activeToolId) && (
