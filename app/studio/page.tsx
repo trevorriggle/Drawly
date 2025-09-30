@@ -11,27 +11,67 @@ import { DEFAULT_TOOLS } from '../../data/tools';
 export default function StudioPage() {
   const { activeToolId, setActiveToolId, getExportCanvas, questionnaireAnswers, setFeedback } = useDrawly();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
 
-  const handleDone = async () => {
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setUploadedImage(base64.split(',')[1]); // Store base64 without prefix
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDownload = () => {
     const exportCanvas = getExportCanvas();
     if (!exportCanvas) {
-      alert('Canvas export not ready yet!');
+      alert('Canvas not ready!');
       return;
     }
 
+    const imageBase64 = exportCanvas();
+    if (!imageBase64) {
+      alert('Failed to export canvas!');
+      return;
+    }
+
+    // Create download link
+    const link = document.createElement('a');
+    link.href = `data:image/png;base64,${imageBase64}`;
+    link.download = `drawly-${Date.now()}.png`;
+    link.click();
+  };
+
+  const handleDone = async () => {
     if (!questionnaireAnswers) {
       alert('Please fill out the questionnaire first!');
       return;
     }
 
-    setIsAnalyzing(true);
-    try {
-      const imageBase64 = exportCanvas();
-      if (!imageBase64) {
-        alert('Failed to export canvas!');
+    let imageBase64: string | null = null;
+
+    // Use uploaded image if available, otherwise export canvas
+    if (uploadedImage) {
+      imageBase64 = uploadedImage;
+    } else {
+      const exportCanvas = getExportCanvas();
+      if (!exportCanvas) {
+        alert('Canvas export not ready yet!');
         return;
       }
+      imageBase64 = exportCanvas();
+    }
 
+    if (!imageBase64) {
+      alert('No image to analyze!');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
       const response = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -81,27 +121,95 @@ export default function StudioPage() {
         <LayersPanel />
       </aside>
 
-      <button
-        onClick={handleDone}
-        disabled={isAnalyzing}
-        style={{
-          position: 'fixed',
-          bottom: 24,
-          right: 24,
+      {/* Action buttons */}
+      <div style={{
+        position: 'fixed',
+        bottom: 24,
+        right: 24,
+        display: 'flex',
+        gap: 12,
+        zIndex: 100
+      }}>
+        {/* Upload button */}
+        <label style={{
           padding: '12px 24px',
-          backgroundColor: isAnalyzing ? '#6b7280' : '#10b981',
+          backgroundColor: '#3b82f6',
           color: 'white',
           border: 'none',
           borderRadius: 8,
           fontSize: 16,
           fontWeight: 600,
-          cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+          cursor: 'pointer',
           boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8
+        }}>
+          📤 Upload
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleUpload}
+            style={{ display: 'none' }}
+          />
+        </label>
+
+        {/* Download button */}
+        <button
+          onClick={handleDownload}
+          style={{
+            padding: '12px 24px',
+            backgroundColor: '#8b5cf6',
+            color: 'white',
+            border: 'none',
+            borderRadius: 8,
+            fontSize: 16,
+            fontWeight: 600,
+            cursor: 'pointer',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+          }}
+        >
+          💾 Download
+        </button>
+
+        {/* I'm done button */}
+        <button
+          onClick={handleDone}
+          disabled={isAnalyzing}
+          style={{
+            padding: '12px 24px',
+            backgroundColor: isAnalyzing ? '#6b7280' : '#10b981',
+            color: 'white',
+            border: 'none',
+            borderRadius: 8,
+            fontSize: 16,
+            fontWeight: 600,
+            cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+          }}
+        >
+          {isAnalyzing ? 'Analyzing...' : "I'm done!"}
+        </button>
+      </div>
+
+      {/* Upload preview indicator */}
+      {uploadedImage && (
+        <div style={{
+          position: 'fixed',
+          top: 80,
+          right: 24,
+          padding: '8px 16px',
+          backgroundColor: '#10b981',
+          color: 'white',
+          borderRadius: 8,
+          fontSize: 14,
+          fontWeight: 500,
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
           zIndex: 100
-        }}
-      >
-        {isAnalyzing ? 'Analyzing...' : "I'm done!"}
-      </button>
+        }}>
+          ✓ Image uploaded - will use this for feedback
+        </div>
+      )}
     </div>
   );
 }
