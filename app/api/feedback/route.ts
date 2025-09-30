@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '',
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || '',
 });
 
 export async function POST(req: NextRequest) {
@@ -17,19 +17,17 @@ export async function POST(req: NextRequest) {
     }
 
     // First API call: Visual analysis
-    const visualAnalysis = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+    const visualAnalysisResponse = await openai.chat.completions.create({
+      model: 'gpt-4o',
       max_tokens: 1024,
       messages: [
         {
           role: 'user',
           content: [
             {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: 'image/png',
-                data: imageBase64,
+              type: 'image_url',
+              image_url: {
+                url: `data:image/png;base64,${imageBase64}`,
               },
             },
             {
@@ -41,9 +39,7 @@ export async function POST(req: NextRequest) {
       ],
     });
 
-    const visualAnalysisText = visualAnalysis.content[0].type === 'text'
-      ? visualAnalysis.content[0].text
-      : '';
+    const visualAnalysisText = visualAnalysisResponse.choices[0]?.message?.content || '';
 
     // Second API call: Personalized feedback
     const feedbackPrompt = `You are Drawly, the friendly drawing coach. Today, the user is drawing ${questionnaireAnswers.subject}. They're attempting the ${questionnaireAnswers.style} style. ${questionnaireAnswers.artists ? `They are inspired by ${questionnaireAnswers.artists}.` : ''} ${questionnaireAnswers.techniques ? `They will be using ${questionnaireAnswers.techniques} technique(s).` : ''} ${questionnaireAnswers.feedbackFocus ? `They want feedback on ${questionnaireAnswers.feedbackFocus}.` : ''} ${questionnaireAnswers.additionalContext ? `The user also wants you to understand: ${questionnaireAnswers.additionalContext}` : ''}
@@ -55,8 +51,8 @@ ${visualAnalysisText}
 
 Please provide your personalized coaching feedback now.`;
 
-    const feedback = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+    const feedbackResponse = await openai.chat.completions.create({
+      model: 'gpt-4o',
       max_tokens: 2048,
       messages: [
         {
@@ -66,9 +62,7 @@ Please provide your personalized coaching feedback now.`;
       ],
     });
 
-    const feedbackText = feedback.content[0].type === 'text'
-      ? feedback.content[0].text
-      : '';
+    const feedbackText = feedbackResponse.choices[0]?.message?.content || '';
 
     return NextResponse.json({
       visualAnalysis: visualAnalysisText,
