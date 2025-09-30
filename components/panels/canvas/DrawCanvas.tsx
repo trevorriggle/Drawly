@@ -44,8 +44,9 @@ export default function DrawCanvas() {
         return null;
       }
 
-      tempCanvas.width = firstCanvas.width;
-      tempCanvas.height = firstCanvas.height;
+      // Use logical size (not DPR scaled) for export to keep file size manageable
+      tempCanvas.width = canvasSize.width;
+      tempCanvas.height = canvasSize.height;
       const tempCtx = tempCanvas.getContext('2d');
       if (!tempCtx) return null;
 
@@ -53,19 +54,21 @@ export default function DrawCanvas() {
       tempCtx.fillStyle = 'white';
       tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
 
-      // Draw all visible layers in order
+      // Draw all visible layers in order (scale down from DPR size)
       layers.forEach((layer) => {
         if (!layer.visible) return;
         const canvas = layerCanvasRefs.current.get(layer.id);
         if (canvas) {
           tempCtx.globalAlpha = layer.opacity;
-          tempCtx.drawImage(canvas, 0, 0);
+          // Scale down from high-res canvas to logical size
+          tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
         }
       });
 
-      console.log('Canvas exported successfully');
+      console.log(`Canvas exported at ${tempCanvas.width}x${tempCanvas.height}`);
       // Export as base64 PNG (remove data:image/png;base64, prefix)
-      return tempCanvas.toDataURL('image/png').split(',')[1];
+      // Use JPEG with quality to further reduce size for API
+      return tempCanvas.toDataURL('image/jpeg', 0.85).split(',')[1];
     };
 
     // Register with context

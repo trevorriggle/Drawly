@@ -107,9 +107,10 @@ export default function StudioPage() {
       console.log('Visual Analysis:', data.visualAnalysis);
       console.log('Feedback:', data.feedback);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error getting feedback:', error);
-      alert('Failed to get feedback. Please try again.');
+      const errorMsg = error?.message || 'Unknown error';
+      alert(`Failed to get feedback: ${errorMsg}\n\nCheck console for details.`);
     } finally {
       setIsAnalyzing(false);
     }

@@ -84,10 +84,10 @@ Keep it conversational but direct. One small joke is fine if it fits naturally.`
       feedback: feedbackText,
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Feedback API error:', error);
     return NextResponse.json(
-      { error: 'Failed to generate feedback' },
+      { error: 'Failed to generate feedback', details: error?.message || 'Unknown error' },
       { status: 500 }
     );
   }
