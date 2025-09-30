@@ -76,7 +76,7 @@ const Ctx = createContext<(State & {
 
 export function DrawlyProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initial);
-  const exportCanvasRef = useRef<(() => string | null) | null>(null);
+  const exportCanvasRef = useRef<(() => string | null) | undefined>(undefined);
 
   const api = useMemo(() => ({
     ...state,
@@ -91,7 +91,7 @@ export function DrawlyProvider({ children }: { children: React.ReactNode }) {
     get exportCanvas() {
       return exportCanvasRef.current;
     },
-    set exportCanvas(fn: (() => string | null) | null) {
+    set exportCanvas(fn: (() => string | null) | undefined) {
       exportCanvasRef.current = fn;
     }
   }), [state]);
