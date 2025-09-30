@@ -30,6 +30,8 @@ export default function DrawCanvas() {
   const [mousePos, setMousePos] = useState<{x: number, y: number} | null>(null);
   const [movingLayer, setMovingLayer] = useState<string | null>(null);
   const [moveStartPos, setMoveStartPos] = useState<{x: number, y: number} | null>(null);
+  const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
+  const [resizingHandle, setResizingHandle] = useState<'tl' | 'tr' | 'bl' | 'br' | null>(null);
 
   // Export canvas function - register it once
   useEffect(() => {
@@ -351,6 +353,40 @@ export default function DrawCanvas() {
     if (activeToolId === 'select') {
       const { x, y } = toCanvasCoords(e.clientX, e.clientY);
 
+      // Check if clicking on a resize handle first
+      if (selectedLayer) {
+        const layer = layers.find(l => l.id === selectedLayer);
+        if (layer?.imagePosition) {
+          const pos = layer.imagePosition;
+          const handleSize = 12 / view.scale;
+
+          // Top-left
+          if (Math.abs(x - pos.x) < handleSize && Math.abs(y - pos.y) < handleSize) {
+            setResizingHandle('tl');
+            setMoveStartPos({ x, y });
+            return;
+          }
+          // Top-right
+          if (Math.abs(x - (pos.x + pos.width)) < handleSize && Math.abs(y - pos.y) < handleSize) {
+            setResizingHandle('tr');
+            setMoveStartPos({ x, y });
+            return;
+          }
+          // Bottom-left
+          if (Math.abs(x - pos.x) < handleSize && Math.abs(y - (pos.y + pos.height)) < handleSize) {
+            setResizingHandle('bl');
+            setMoveStartPos({ x, y });
+            return;
+          }
+          // Bottom-right
+          if (Math.abs(x - (pos.x + pos.width)) < handleSize && Math.abs(y - (pos.y + pos.height)) < handleSize) {
+            setResizingHandle('br');
+            setMoveStartPos({ x, y });
+            return;
+          }
+        }
+      }
+
       // Check if clicking on an uploaded image
       for (const layer of layers) {
         if (!layer.visible || !layer.imagePosition) continue;
@@ -358,12 +394,16 @@ export default function DrawCanvas() {
         const pos = layer.imagePosition;
         if (x >= pos.x && x <= pos.x + pos.width && y >= pos.y && y <= pos.y + pos.height) {
           console.log(`Selected layer ${layer.id}`);
+          setSelectedLayer(layer.id);
           setMovingLayer(layer.id);
           setMoveStartPos({ x, y });
           last.current = { x: e.clientX, y: e.clientY };
           return;
         }
       }
+
+      // Clicked outside - deselect
+      setSelectedLayer(null);
       return;
     }
 
@@ -484,10 +524,63 @@ export default function DrawCanvas() {
       setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
     }
 
-    if (!last.current && !isDrawingLine.current && !movingLayer) return;
+    if (!last.current && !isDrawingLine.current && !movingLayer && !resizingHandle) return;
+
+    // resizing image
+    if (resizingHandle && selectedLayer && moveStartPos) {
+      const { x, y } = toCanvasCoords(e.clientX, e.clientY);
+      const layer = layers.find(l => l.id === selectedLayer);
+
+      if (layer?.imagePosition) {
+        const pos = layer.imagePosition;
+        let newX = pos.x, newY = pos.y, newWidth = pos.width, newHeight = pos.height;
+
+        switch (resizingHandle) {
+          case 'tl':
+            newX = x;
+            newY = y;
+            newWidth = pos.x + pos.width - x;
+            newHeight = pos.y + pos.height - y;
+            break;
+          case 'tr':
+            newY = y;
+            newWidth = x - pos.x;
+            newHeight = pos.y + pos.height - y;
+            break;
+          case 'bl':
+            newX = x;
+            newWidth = pos.x + pos.width - x;
+            newHeight = y - pos.y;
+            break;
+          case 'br':
+            newWidth = x - pos.x;
+            newHeight = y - pos.y;
+            break;
+        }
+
+        // Ensure minimum size
+        if (newWidth > 20 && newHeight > 20) {
+          updateLayerImagePosition(selectedLayer, {
+            x: newX,
+            y: newY,
+            width: newWidth,
+            height: newHeight
+          });
+
+          // Re-render the layer
+          if (uploadedImageForLayer?.layerId === selectedLayer) {
+            const canvas = layerCanvasRefs.current.get(selectedLayer);
+            if (canvas) {
+              renderImageToCanvas(canvas, uploadedImageForLayer.image);
+            }
+          }
+        }
+      }
+      return;
+    }
 
     // moving image
-    if (movingLayer && last.current && moveStartPos) {
+    if (movingLayer && last.current && moveStartPos && !resizingHandle) {
       const { x, y } = toCanvasCoords(e.clientX, e.clientY);
       const layer = layers.find(l => l.id === movingLayer);
 
@@ -565,6 +658,13 @@ export default function DrawCanvas() {
   }
 
   function onPointerUp(e: React.PointerEvent) {
+    // Stop resizing
+    if (resizingHandle) {
+      setResizingHandle(null);
+      setMoveStartPos(null);
+      return;
+    }
+
     // Stop moving
     if (movingLayer) {
       setMovingLayer(null);
@@ -683,6 +783,52 @@ export default function DrawCanvas() {
         onWheel={onWheel}
         onContextMenu={(e) => e.preventDefault()}
       />
+      {/* Selection handles */}
+      {selectedLayer && activeToolId === 'select' && (() => {
+        const layer = layers.find(l => l.id === selectedLayer);
+        if (!layer?.imagePosition) return null;
+
+        const pos = layer.imagePosition;
+        const handleSize = 12;
+
+        return (
+          <>
+            {/* Selection border */}
+            <div style={{
+              position: 'absolute',
+              left: view.x + pos.x * view.scale,
+              top: view.y + pos.y * view.scale,
+              width: pos.width * view.scale,
+              height: pos.height * view.scale,
+              border: '2px dashed #3b82f6',
+              pointerEvents: 'none',
+              zIndex: 999
+            }} />
+
+            {/* Corner handles */}
+            {[
+              { key: 'tl', x: pos.x, y: pos.y },
+              { key: 'tr', x: pos.x + pos.width, y: pos.y },
+              { key: 'bl', x: pos.x, y: pos.y + pos.height },
+              { key: 'br', x: pos.x + pos.width, y: pos.y + pos.height }
+            ].map(handle => (
+              <div key={handle.key} style={{
+                position: 'absolute',
+                left: view.x + handle.x * view.scale - handleSize / 2,
+                top: view.y + handle.y * view.scale - handleSize / 2,
+                width: handleSize,
+                height: handleSize,
+                backgroundColor: 'white',
+                border: '2px solid #3b82f6',
+                borderRadius: '50%',
+                cursor: handle.key === 'tl' || handle.key === 'br' ? 'nwse-resize' : 'nesw-resize',
+                zIndex: 1000
+              }} />
+            ))}
+          </>
+        );
+      })()}
+
       {/* Brush size cursor preview */}
       {mousePos && ['pencil', 'brush', 'eraser'].includes(activeToolId) && (
         <div
