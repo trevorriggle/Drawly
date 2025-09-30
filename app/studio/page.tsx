@@ -100,7 +100,7 @@ export default function StudioPage() {
           zIndex: 100
         }}
       >
-        {isAnalyzing ? 'Analyzing...' : 'I&apos;m done!'}
+        {isAnalyzing ? 'Analyzing...' : "I'm done!"}
       </button>
 
       {feedback && (
