@@ -25,16 +25,17 @@ export default function StudioPage() {
       // Create image object to render on canvas
       const img = new Image();
       img.onload = () => {
+        // Get the current layers to determine the next layer ID
+        const currentLayers = layers;
+        const newLayerId = `layer-${currentLayers.length + 1}`;
+
         // Add a new layer for the uploaded image
         addLayer(`Uploaded`);
 
-        // Wait a tick for the layer to be created, then set the image
+        // Wait for the layer to be created, then set the image
         setTimeout(() => {
-          const newLayer = layers[layers.length]; // Get the newly created layer
-          if (newLayer) {
-            setUploadedImage(newLayer.id, img);
-          }
-        }, 50);
+          setUploadedImage(newLayerId, img);
+        }, 100);
       };
       img.src = base64;
     };

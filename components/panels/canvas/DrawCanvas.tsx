@@ -174,7 +174,7 @@ export default function DrawCanvas() {
     const container = containerRef.current;
     if (!container) return;
 
-    const dpr = (window.devicePixelRatio || 1) * 8; // 8x resolution for absolutely fantastic quality
+    const dpr = window.devicePixelRatio || 1; // Use native device pixel ratio
 
     // Add white background once
     if (!container.querySelector('.bg')) {
@@ -232,16 +232,27 @@ export default function DrawCanvas() {
   useEffect(() => {
     if (!uploadedImageForLayer) return;
 
+    console.log('Attempting to render image on layer:', uploadedImageForLayer.layerId);
+    console.log('Available layers:', Array.from(layerCanvasRefs.current.keys()));
+
     const canvas = layerCanvasRefs.current.get(uploadedImageForLayer.layerId);
     if (!canvas) {
-      console.log('Canvas not found for uploaded image');
-      return;
+      console.log('Canvas not found for uploaded image, trying again in 200ms');
+      const timeout = setTimeout(() => {
+        const retryCanvas = layerCanvasRefs.current.get(uploadedImageForLayer.layerId);
+        if (retryCanvas) {
+          renderImageToCanvas(retryCanvas, uploadedImageForLayer.image);
+        }
+      }, 200);
+      return () => clearTimeout(timeout);
     }
 
+    renderImageToCanvas(canvas, uploadedImageForLayer.image);
+  }, [uploadedImageForLayer, canvasSize.width, canvasSize.height]);
+
+  function renderImageToCanvas(canvas: HTMLCanvasElement, img: HTMLImageElement) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
-    const img = uploadedImageForLayer.image;
 
     // Calculate scaling to fit image in canvas while maintaining aspect ratio
     const scale = Math.min(canvasSize.width / img.width, canvasSize.height / img.height);
@@ -250,11 +261,18 @@ export default function DrawCanvas() {
     const x = (canvasSize.width - scaledWidth) / 2;
     const y = (canvasSize.height - scaledHeight) / 2;
 
-    ctx.clearRect(0, 0, canvasSize.width, canvasSize.height);
+    // Clear and draw
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
 
-    console.log(`Rendered uploaded image on layer ${uploadedImageForLayer.layerId}`);
-  }, [uploadedImageForLayer, canvasSize.width, canvasSize.height]);
+    console.log(`✓ Rendered uploaded image: ${scaledWidth}x${scaledHeight} at (${x}, ${y})`);
+  }
 
   function getActiveLayerCtx() {
     const canvas = layerCanvasRefs.current.get(activeLayerId);
