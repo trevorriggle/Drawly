@@ -20,6 +20,7 @@ type State = {
   layers: { id: string; name: string; visible: boolean; opacity: number }[];
   activeLayerId: string;
   questionnaireAnswers: QuestionnaireAnswers | null;
+  feedback: string | null;
 };
 
 type Action =
@@ -30,7 +31,8 @@ type Action =
   | { type: 'TOGGLE_LAYER_VIS'; id: string }
   | { type: 'SET_LAYER_OPACITY'; id: string; opacity: number }
   | { type: 'SET_ACTIVE_LAYER'; id: string }
-  | { type: 'SET_QUESTIONNAIRE'; answers: QuestionnaireAnswers };
+  | { type: 'SET_QUESTIONNAIRE'; answers: QuestionnaireAnswers }
+  | { type: 'SET_FEEDBACK'; feedback: string | null };
 
 const initial: State = {
   activeToolId: 'pencil',
@@ -38,7 +40,8 @@ const initial: State = {
   brushSize: 4,
   layers: [{ id: 'background', name: 'Background', visible: true, opacity: 1 }],
   activeLayerId: 'background',
-  questionnaireAnswers: null
+  questionnaireAnswers: null,
+  feedback: null
 };
 
 function reducer(state: State, action: Action): State {
@@ -58,6 +61,7 @@ function reducer(state: State, action: Action): State {
     }
     case 'SET_ACTIVE_LAYER': return { ...state, activeLayerId: action.id };
     case 'SET_QUESTIONNAIRE': return { ...state, questionnaireAnswers: action.answers };
+    case 'SET_FEEDBACK': return { ...state, feedback: action.feedback };
     default: return state;
   }
 }
@@ -71,6 +75,7 @@ const Ctx = createContext<(State & {
   setLayerOpacity: (id: string, opacity: number) => void;
   setActiveLayer: (id: string) => void;
   setQuestionnaireAnswers: (answers: QuestionnaireAnswers) => void;
+  setFeedback: (feedback: string | null) => void;
   exportCanvas?: () => string | null;
 }) | null>(null);
 
@@ -88,6 +93,7 @@ export function DrawlyProvider({ children }: { children: React.ReactNode }) {
     setLayerOpacity: (id: string, opacity: number) => dispatch({ type: 'SET_LAYER_OPACITY', id, opacity }),
     setActiveLayer: (id: string) => dispatch({ type: 'SET_ACTIVE_LAYER', id }),
     setQuestionnaireAnswers: (answers: QuestionnaireAnswers) => dispatch({ type: 'SET_QUESTIONNAIRE', answers }),
+    setFeedback: (feedback: string | null) => dispatch({ type: 'SET_FEEDBACK', feedback }),
     get exportCanvas() {
       return exportCanvasRef.current;
     },

@@ -3,12 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 /**
- * Drawly Buddy (placeholder)
+ * Drawly Buddy
  * - Draggable floating button (pencil icon)
- * - Click toggles a small "thoughts" card
+ * - Click toggles feedback card
  * - Position persists to localStorage
- * - No model logic, no APIs
  */
+
+interface FloatingBuddyProps {
+  feedback?: string | null;
+  onCloseFeedback?: () => void;
+}
 
 const STORAGE_KEY = "drawly_buddy_pos_v1";
 const EDGE = 8;         // padding from viewport edges
@@ -25,12 +29,19 @@ const getInitialPosition = () => {
   return { x, y };
 };
 
-export default function FloatingBuddy() {
+export default function FloatingBuddy({ feedback, onCloseFeedback }: FloatingBuddyProps) {
   const [pos, setPos] = useState(getInitialPosition);
   const [open, setOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const press = useRef({ x: 0, y: 0, moved: 0, offX: 0, offY: 0 });
   const ref = useRef<HTMLDivElement | null>(null);
+
+  // Auto-open when feedback arrives
+  useEffect(() => {
+    if (feedback) {
+      setOpen(true);
+    }
+  }, [feedback]);
 
   // restore saved position (or set initial)
   useEffect(() => {
@@ -131,24 +142,47 @@ export default function FloatingBuddy() {
         <div
           style={{
             position: "fixed",
-            left: pos.x - 220 + BTN_W, // card to the left of the buddy by default
+            left: pos.x - 400 + BTN_W, // card to the left of the buddy
             top: pos.y + BTN_H + 8,
             zIndex: 50_001,
-            width: 220,
+            width: feedback ? 450 : 220,
+            maxHeight: feedback ? '70vh' : 'auto',
+            overflow: feedback ? 'auto' : 'visible',
             background: "#0b1220",
             color: "white",
             border: "1px solid #1f2937",
             borderRadius: 12,
             boxShadow: "0 16px 40px rgba(0,0,0,.45)",
-            padding: 12,
+            padding: 16,
           }}
           role="dialog"
-          aria-label="Drawly thoughts"
+          aria-label="Drawly feedback"
         >
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>Drawly</div>
-          <div style={{ fontSize: 13, opacity: 0.85, lineHeight: 1.5 }}>
-            hey! i’m your friendly pencil. drag me anywhere. soon i’ll be animated
-            and pop in with tips, critiques, and shortcuts. ✏️
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>Drawly</div>
+            {feedback && onCloseFeedback && (
+              <button
+                onClick={() => {
+                  onCloseFeedback();
+                  setOpen(false);
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: 20,
+                  padding: '0 4px',
+                  opacity: 0.7
+                }}
+                aria-label="Close feedback"
+              >
+                ×
+              </button>
+            )}
+          </div>
+          <div style={{ fontSize: 14, opacity: 0.9, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+            {feedback || "hey! i'm your friendly pencil. drag me anywhere. draw something and click \"I'm done!\" to get feedback. ✏️"}
           </div>
         </div>
       )}

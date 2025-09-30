@@ -9,9 +9,8 @@ import { useDrawly } from '../../context/DrawlyProvider';
 import { DEFAULT_TOOLS } from '../../data/tools';
 
 export default function StudioPage() {
-  const { activeToolId, setActiveToolId, exportCanvas, questionnaireAnswers } = useDrawly();
+  const { activeToolId, setActiveToolId, exportCanvas, questionnaireAnswers, setFeedback } = useDrawly();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
 
   const handleDone = async () => {
     if (!exportCanvas) {
@@ -102,57 +101,6 @@ export default function StudioPage() {
       >
         {isAnalyzing ? 'Analyzing...' : "I'm done!"}
       </button>
-
-      {feedback && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: 20
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: 12,
-            padding: 32,
-            maxWidth: 700,
-            width: '100%',
-            maxHeight: '80vh',
-            overflow: 'auto',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
-          }}>
-            <h2 style={{ fontSize: 24, fontWeight: 700, color: '#111827', marginBottom: 16 }}>
-              Your Feedback from Drawly
-            </h2>
-            <div style={{ fontSize: 16, color: '#374151', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-              {feedback}
-            </div>
-            <button
-              onClick={() => setFeedback(null)}
-              style={{
-                marginTop: 24,
-                width: '100%',
-                padding: '12px 24px',
-                backgroundColor: '#3b82f6',
-                color: 'white',
-                border: 'none',
-                borderRadius: 8,
-                fontSize: 16,
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

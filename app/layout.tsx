@@ -2,8 +2,7 @@ import type { Metadata } from 'next';
 import '../styles/globals.css';
 
 import { DrawlyProvider } from '../context/DrawlyProvider';
-import AppShell from '../components/AppShell';
-import FloatingBuddy from '../components/floatingbuddy';
+import LayoutClient from './layout-client';
 
 export const metadata: Metadata = {
   title: 'Drawly',
@@ -15,9 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <DrawlyProvider>
-          <AppShell>{children}</AppShell>
-          {/* Floating draggable pencil buddy, rendered on every page */}
-          <FloatingBuddy />
+          <LayoutClient>{children}</LayoutClient>
         </DrawlyProvider>
       </body>
     </html>

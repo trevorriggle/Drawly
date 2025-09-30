@@ -32,7 +32,17 @@ export async function POST(req: NextRequest) {
             },
             {
               type: 'text',
-              text: 'Please provide a detailed visual analysis of this drawing. Focus on composition, technique, shading, proportions, color usage, and overall execution. Be specific and objective.',
+              text: `Analyze this drawing with technical precision. Provide specific, measurable observations about:
+
+1. **Line Quality**: Weight variation, confidence, wobble, control
+2. **Proportions**: Specific measurements (head-to-body ratios, limb lengths, symmetry)
+3. **Perspective & Form**: Vanishing points, foreshortening, volume rendering
+4. **Value Structure**: Light source direction, cast shadows, form shadows, value range (1-10 scale)
+5. **Composition**: Rule of thirds, focal point, negative space, balance
+6. **Technique Execution**: Brush strokes, blending, layering, texture rendering
+7. **Anatomy/Construction** (if applicable): Underlying structure, gesture, weight distribution
+
+Be objective and specific. Use concrete terms. No fluff.`,
             },
           ],
         },
@@ -42,14 +52,19 @@ export async function POST(req: NextRequest) {
     const visualAnalysisText = visualAnalysisResponse.choices[0]?.message?.content || '';
 
     // Second API call: Personalized feedback
-    const feedbackPrompt = `You are Drawly, the friendly drawing coach. Today, the user is drawing ${questionnaireAnswers.subject}. They're attempting the ${questionnaireAnswers.style} style. ${questionnaireAnswers.artists ? `They are inspired by ${questionnaireAnswers.artists}.` : ''} ${questionnaireAnswers.techniques ? `They will be using ${questionnaireAnswers.techniques} technique(s).` : ''} ${questionnaireAnswers.feedbackFocus ? `They want feedback on ${questionnaireAnswers.feedbackFocus}.` : ''} ${questionnaireAnswers.additionalContext ? `The user also wants you to understand: ${questionnaireAnswers.additionalContext}` : ''}
+    const feedbackPrompt = `You are Drawly, an expert art coach. The user is working on: ${questionnaireAnswers.subject} in ${questionnaireAnswers.style} style${questionnaireAnswers.artists ? `, inspired by ${questionnaireAnswers.artists}` : ''}${questionnaireAnswers.techniques ? `. Techniques: ${questionnaireAnswers.techniques}` : ''}${questionnaireAnswers.feedbackFocus ? `. Focus area: ${questionnaireAnswers.feedbackFocus}` : ''}${questionnaireAnswers.additionalContext ? `. Context: ${questionnaireAnswers.additionalContext}` : ''}.
 
-You'll be providing detailed feedback on their drawing. Focus on specifics, as requested in the prompt. Be encouraging and friendly. Provide the best possible feedback, focusing on improving the individual's artistic skills. Focus on detail, as the quality of the work is the culmination of the many small details. Slip in a small, friendly joke, NEVER at the user's expense.
-
-Here is the visual analysis of their drawing:
+Based on this technical analysis:
 ${visualAnalysisText}
 
-Please provide your personalized coaching feedback now.`;
+Provide coaching feedback that is:
+- **Specific**: Reference exact areas, measurements, techniques
+- **Actionable**: Give concrete next steps ("adjust the shoulder 15% wider" not "work on proportions")
+- **Prioritized**: Start with the most impactful improvements
+- **Encouraging but honest**: Acknowledge what's working, then focus on growth areas
+- **Brief**: 3-4 key points maximum. No generic praise.
+
+Keep it conversational but direct. One small joke is fine if it fits naturally.`;
 
     const feedbackResponse = await openai.chat.completions.create({
       model: 'gpt-4o',
