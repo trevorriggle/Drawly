@@ -29,13 +29,16 @@ export default function DrawCanvas() {
   const [canvasSize, setCanvasSize] = useState({ width: 1600, height: 1000 });
   const [mousePos, setMousePos] = useState<{x: number, y: number} | null>(null);
 
-  // Export canvas function - set it up once
+  // Export canvas function - register it once
   useEffect(() => {
     const exportFunc = () => {
       // Create a temporary canvas to combine all layers
       const tempCanvas = document.createElement('canvas');
       const firstCanvas = layerCanvasRefs.current.values().next().value;
-      if (!firstCanvas) return null;
+      if (!firstCanvas) {
+        console.log('No canvas found to export');
+        return null;
+      }
 
       tempCanvas.width = firstCanvas.width;
       tempCanvas.height = firstCanvas.height;
@@ -56,12 +59,14 @@ export default function DrawCanvas() {
         }
       });
 
+      console.log('Canvas exported successfully');
       // Export as base64 PNG (remove data:image/png;base64, prefix)
       return tempCanvas.toDataURL('image/png').split(',')[1];
     };
 
-    // Assign to context
-    (drawlyContext as any).exportCanvas = exportFunc;
+    // Register with context
+    drawlyContext.registerExportCanvas(exportFunc);
+    console.log('Export function registered');
   }, [layers, drawlyContext]);
 
   // Update canvas size to fill container

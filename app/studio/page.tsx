@@ -9,10 +9,11 @@ import { useDrawly } from '../../context/DrawlyProvider';
 import { DEFAULT_TOOLS } from '../../data/tools';
 
 export default function StudioPage() {
-  const { activeToolId, setActiveToolId, exportCanvas, questionnaireAnswers, setFeedback } = useDrawly();
+  const { activeToolId, setActiveToolId, getExportCanvas, questionnaireAnswers, setFeedback } = useDrawly();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const handleDone = async () => {
+    const exportCanvas = getExportCanvas();
     if (!exportCanvas) {
       alert('Canvas export not ready yet!');
       return;

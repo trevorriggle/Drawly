@@ -76,12 +76,13 @@ const Ctx = createContext<(State & {
   setActiveLayer: (id: string) => void;
   setQuestionnaireAnswers: (answers: QuestionnaireAnswers) => void;
   setFeedback: (feedback: string | null) => void;
-  exportCanvas?: () => string | null;
+  registerExportCanvas: (fn: () => string | null) => void;
+  getExportCanvas: () => (() => string | null) | null;
 }) | null>(null);
 
 export function DrawlyProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initial);
-  const exportCanvasRef = useRef<(() => string | null) | undefined>(undefined);
+  const exportCanvasRef = useRef<(() => string | null) | null>(null);
 
   const api = useMemo(() => ({
     ...state,
@@ -94,12 +95,10 @@ export function DrawlyProvider({ children }: { children: React.ReactNode }) {
     setActiveLayer: (id: string) => dispatch({ type: 'SET_ACTIVE_LAYER', id }),
     setQuestionnaireAnswers: (answers: QuestionnaireAnswers) => dispatch({ type: 'SET_QUESTIONNAIRE', answers }),
     setFeedback: (feedback: string | null) => dispatch({ type: 'SET_FEEDBACK', feedback }),
-    get exportCanvas() {
-      return exportCanvasRef.current;
-    },
-    set exportCanvas(fn: (() => string | null) | undefined) {
+    registerExportCanvas: (fn: () => string | null) => {
       exportCanvasRef.current = fn;
-    }
+    },
+    getExportCanvas: () => exportCanvasRef.current
   }), [state]);
 
   return (
