@@ -172,7 +172,7 @@ export default function NewProjectQuestionnaire({ onComplete, onGoToProjects }: 
 
             <div>
               <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
-                6. Lastly, is there any additional context you'd like me to have?
+                6. Lastly, is there any additional context you&apos;d like me to have?
               </label>
               <textarea
                 value={answers.additionalContext}
