@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useMemo, useReducer } from 'react';
+import React, { createContext, useContext, useMemo, useReducer, useRef } from 'react';
 import type { ToolId } from '@/data/tools';
 import { IconRegistryProvider } from '@/lib/icons-registry';
 
@@ -76,6 +76,7 @@ const Ctx = createContext<(State & {
 
 export function DrawlyProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initial);
+  const exportCanvasRef = useRef<(() => string | null) | null>(null);
 
   const api = useMemo(() => ({
     ...state,
@@ -86,7 +87,13 @@ export function DrawlyProvider({ children }: { children: React.ReactNode }) {
     toggleLayer: (id: string) => dispatch({ type: 'TOGGLE_LAYER_VIS', id }),
     setLayerOpacity: (id: string, opacity: number) => dispatch({ type: 'SET_LAYER_OPACITY', id, opacity }),
     setActiveLayer: (id: string) => dispatch({ type: 'SET_ACTIVE_LAYER', id }),
-    setQuestionnaireAnswers: (answers: QuestionnaireAnswers) => dispatch({ type: 'SET_QUESTIONNAIRE', answers })
+    setQuestionnaireAnswers: (answers: QuestionnaireAnswers) => dispatch({ type: 'SET_QUESTIONNAIRE', answers }),
+    get exportCanvas() {
+      return exportCanvasRef.current;
+    },
+    set exportCanvas(fn: (() => string | null) | null) {
+      exportCanvasRef.current = fn;
+    }
   }), [state]);
 
   return (
