@@ -35,11 +35,13 @@ export default function FloatingBuddy({ feedback, onCloseFeedback }: FloatingBud
   const [dragging, setDragging] = useState(false);
   const press = useRef({ x: 0, y: 0, moved: 0, offX: 0, offY: 0 });
   const ref = useRef<HTMLDivElement | null>(null);
+  const [hasFeedback, setHasFeedback] = useState(false);
 
-  // Auto-open when feedback arrives
+  // Auto-open when feedback arrives and remember we have feedback
   useEffect(() => {
     if (feedback) {
       setOpen(true);
+      setHasFeedback(true);
     }
   }, [feedback]);
 
@@ -121,14 +123,15 @@ export default function FloatingBuddy({ feedback, onCloseFeedback }: FloatingBud
           width: 48,
           height: 48,
           borderRadius: 12,
-          background: "#111827",
-          border: "1px solid #374151",
-          boxShadow: "0 8px 24px rgba(0,0,0,.35)",
+          background: hasFeedback && !open ? "#10b981" : "#111827",
+          border: hasFeedback && !open ? "2px solid #34d399" : "1px solid #374151",
+          boxShadow: hasFeedback && !open ? "0 8px 24px rgba(16,185,129,.35)" : "0 8px 24px rgba(0,0,0,.35)",
           color: "white",
           display: "grid",
           placeItems: "center",
           cursor: dragging ? "grabbing" : "grab",
           userSelect: "none",
+          transition: "all 0.2s ease"
         }}
         aria-label="Drawly Buddy"
       >
@@ -136,6 +139,20 @@ export default function FloatingBuddy({ feedback, onCloseFeedback }: FloatingBud
         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
           <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41L18.37 3.29a1 1 0 0 0-1.41 0L15.6 4.65l3.75 3.75 1.36-1.36z"/>
         </svg>
+        {/* Notification badge */}
+        {hasFeedback && !open && (
+          <div style={{
+            position: 'absolute',
+            top: -4,
+            right: -4,
+            width: 16,
+            height: 16,
+            backgroundColor: '#ef4444',
+            borderRadius: '50%',
+            border: '2px solid white',
+            animation: 'pulse 2s ease-in-out infinite'
+          }} />
+        )}
       </div>
 
       {open && (
@@ -160,26 +177,21 @@ export default function FloatingBuddy({ feedback, onCloseFeedback }: FloatingBud
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <div style={{ fontWeight: 700, fontSize: 16 }}>Drawly</div>
-            {feedback && onCloseFeedback && (
-              <button
-                onClick={() => {
-                  onCloseFeedback();
-                  setOpen(false);
-                }}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: 20,
-                  padding: '0 4px',
-                  opacity: 0.7
-                }}
-                aria-label="Close feedback"
-              >
-                ×
-              </button>
-            )}
+            <button
+              onClick={() => setOpen(false)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: 20,
+                padding: '0 4px',
+                opacity: 0.7
+              }}
+              aria-label="Collapse feedback"
+            >
+              −
+            </button>
           </div>
           <div style={{ fontSize: 14, opacity: 0.9, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
             {feedback || "hey! i'm your friendly pencil. drag me anywhere. draw something and click \"I'm done!\" to get feedback. ✏️"}
