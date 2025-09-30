@@ -1,6 +1,13 @@
-import Link from 'next/link';
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import NewProjectQuestionnaire from '../components/NewProjectQuestionnaire';
+import type { QuestionnaireAnswers } from '../components/NewProjectQuestionnaire';
 
 export default function HomePage() {
+  const [showQuestionnaire, setShowQuestionnaire] = useState(false);
+  const router = useRouter();
   return (
     <div style={{
       display: 'flex',
@@ -18,28 +25,44 @@ export default function HomePage() {
         <p style={{ fontSize: 20, color: '#6b7280', marginBottom: 32 }}>
           Draw first. Get coached second. Improve always.
         </p>
-        <Link
-          href="/studio"
+        <button
+          onClick={() => setShowQuestionnaire(true)}
           style={{
             background: '#3b82f6',
             color: 'white',
             padding: '12px 24px',
             borderRadius: 8,
-            textDecoration: 'none',
             fontSize: 16,
             fontWeight: 600,
+            border: 'none',
+            cursor: 'pointer',
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
             transition: 'all 0.15s ease'
           }}
         >
           Open Studio →
-        </Link>
+        </button>
       </div>
 
       <div style={{ opacity: 0.5, fontSize: 14, color: '#9ca3af' }}>
         Environment: SUPABASE_URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? 'configured' : 'missing'} ·
         ANON_KEY: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'configured' : 'missing'}
       </div>
+
+      {showQuestionnaire && (
+        <NewProjectQuestionnaire
+          onComplete={(answers: QuestionnaireAnswers) => {
+            // TODO: Store answers in context/state
+            console.log('Questionnaire answers:', answers);
+            router.push('/studio');
+          }}
+          onGoToProjects={() => {
+            // TODO: Navigate to projects page when it exists
+            console.log('Go to projects clicked');
+            setShowQuestionnaire(false);
+          }}
+        />
+      )}
     </div>
   );
 }
