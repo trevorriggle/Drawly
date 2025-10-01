@@ -25,6 +25,8 @@ export default function DrawCanvas() {
   const lineStart = useRef<{x:number;y:number}|null>(null);
   const linePreviewImageData = useRef<ImageData | null>(null);
   const last = useRef<{x:number;y:number}|null>(null);
+  const rafId = useRef<number | null>(null);
+  const pendingDraw = useRef<{x: number, y: number} | null>(null);
 
   const [canvasSize, setCanvasSize] = useState({ width: 1600, height: 1000 });
   const [mousePos, setMousePos] = useState<{x: number, y: number} | null>(null);
@@ -181,7 +183,7 @@ export default function DrawCanvas() {
     const container = containerRef.current;
     if (!container) return;
 
-    const dpr = (window.devicePixelRatio || 1) * 4; // 4x resolution for good quality
+    const dpr = (window.devicePixelRatio || 1) * 2; // 2x resolution for balanced performance/quality
 
     // Add white background once
     if (!container.querySelector('.bg')) {
@@ -652,11 +654,21 @@ export default function DrawCanvas() {
       return;
     }
 
-    // Regular brush drawing
+    // Regular brush drawing - throttle with RAF
     if (isDrawing.current && last.current) {
-      ctx.lineTo(x, y);
-      ctx.stroke();
-      last.current = { x, y };
+      pendingDraw.current = { x, y };
+
+      if (!rafId.current) {
+        rafId.current = requestAnimationFrame(() => {
+          if (pendingDraw.current && last.current) {
+            ctx.lineTo(pendingDraw.current.x, pendingDraw.current.y);
+            ctx.stroke();
+            last.current = pendingDraw.current;
+            pendingDraw.current = null;
+          }
+          rafId.current = null;
+        });
+      }
     }
   }
 
@@ -710,6 +722,12 @@ export default function DrawCanvas() {
     isPanning.current = false;
     isDrawing.current = false;
     last.current = null;
+
+    // Clean up any pending RAF
+    if (rafId.current) {
+      cancelAnimationFrame(rafId.current);
+      rafId.current = null;
+    }
   }
 
   // keyboard: hold space to pan
@@ -863,8 +881,6 @@ export default function DrawCanvas() {
         {activeToolId === 'text' && <span style={{ marginLeft: 8, color: '#10b981' }}>(T) CLICK TO TYPE</span>}
         {activeToolId === 'pan' && <span style={{ marginLeft: 8, color: '#3b82f6' }}>(H) DRAG TO PAN</span>}
         {['select', 'lasso', 'wand', 'transform', 'crop'].includes(activeToolId) && <span style={{ marginLeft: 8, color: '#f59e0b' }}>NO DRAW</span>}
-        <span style={{ margin: '0 8px' }}>·</span>
-        <span>Layer: <span className="kbd" style={{ color: '#3b82f6' }}>{layers.find(l => l.id === activeLayerId)?.name || activeLayerId}</span></span>
         <span style={{ margin: '0 8px' }}>·</span>
         <span>Size: <span className="kbd">{brushSize}px</span></span>
         <span style={{ margin: '0 8px' }}>·</span>

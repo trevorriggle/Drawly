@@ -8,6 +8,90 @@ Deploy-ready Next.js + TypeScript app with:
 - Supabase client wiring
 - /api/health endpoint
 
+## Legal & Market "Takeover" Playbook
+
+### 1) Laser Product Priorities (MVP)
+
+**Canvas**: 70% Procreate quality. Focus on responsiveness, pressure smoothing, low-latency layers, reliable undo/redo.
+
+**Core brushes**: 5–10 best-in-class defaults. Tiny, perfect, non-bloated.
+
+**AI features**: "Critique snapshots" (post-draw analysis), suggestion overlays, composition tips, color harmonies. Rate-limit to manage costs.
+
+**Custom Drawlys**: Shareable prompt-personalities (onboarding, critique, style coach). Core viral hook.
+
+### 2) Viral Acquisition & Community
+
+**Free tier + referral loop**: Refer a friend → unlock a brush or a Drawly slot. Make it frictionless.
+
+**Social-native UX**: One-tap "use this brush / adopt this Drawly" from any portfolio post.
+
+**TikTok / Instagram hooks**: 15–30s creator templates: "before/after critique", "Drawly roast", speedpaint with commentary by a Drawly.
+
+**Teacher / school outreach**: Free classroom packs + easy install guides. Student adoption = long-term moat.
+
+### 3) Monetization (Aligned with Cost)
+
+**Freemium**: Free canvas + limited AI credits + 3 Drawlys.
+
+**Pro subscription**: Unlimited AI, extra Drawlys, priority rendering, marketplace discounts.
+
+**Marketplace**: Paid premium Drawlys, brush packs, and templates (you keep a cut).
+
+**Microtransactions**: Cosmetic skins, profile badges, limited-time brush packs.
+
+### 4) API Cost Control (Practical)
+
+**Snapshot model**: Only analyze when user pauses or requests critique.
+
+**Client-side heuristics**: Detect significant changes before sending to API.
+
+**Adaptive quality**: Cheaper backend model for basic critique, high-cost model for deep analysis (Pro users).
+
+**Batching & caching**: Reuse critiques for similar artworks, cache user-specific prompts.
+
+### 5) Product-Market Positioning & Messaging
+
+**Tagline ideas**: "Drawly — Draw first. Get smarter." or "Art school in your pocket."
+
+**Emphasize**: Free entry, AI-coach, shareable personalities, social discovery.
+
+**Narrative**: "Not just a canvas — a community that teaches you to get better."
+
+### 6) Growth Experiments (First 90 Days)
+
+- Seed 50 art creators with Pro accounts for 3 months; ask them to post tutorials using Drawly
+- Launch a TikTok challenge (Hashtag) using a built-in Drawly voice
+- Teacher referral program: give classroom leaderboards + school packs
+
+### 7) KPIs to Obsess Over
+
+- DAU/MAU, 7-day retention, 30-day retention
+- Referral conversion rate (referees → active users)
+- Free → Pro conversion (target 2–5% initially)
+- Cost per retained user (API spend vs revenue)
+
+### 8) Immediate Next Steps
+
+**Priority 1 (Next 30 days)**:
+1. Ship barebones canvas + 3 brushes + 1 Drawly personality
+2. Build referral loop (refer → unlock brush)
+3. Seed 10-20 creators, get them posting
+4. Measure: 7-day retention, API cost per user
+
+**Cut/Defer**:
+- Marketplace (wait for scale)
+- Teacher program (too slow for early traction)
+- Microtransactions (distracting)
+
+**Key Risks**:
+- 70% Procreate quality is hard—consider partnering with existing canvas engine (Skia, Rive)
+- Teacher adoption cycles are 6-12 months—don't rely on this early
+- Marketplace needs critical mass (10k+ DAU before launch)
+- Free→Pro conversion: budget conservatively (1-3% more realistic than 2-5%)
+
+---
+
 ## How this product will work fundamentally
 
 Hey there! Ready to draw? To give the best feedback, please answer these questions!
