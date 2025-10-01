@@ -676,6 +676,24 @@ export default function DrawCanvas() {
         }
       }
 
+      // Check if clicking on drawn pixels (for layers without imagePosition)
+      const ctx = getActiveLayerCtx();
+      const canvas = getActiveLayerCanvas();
+      const scaledX = Math.floor(x * dpr.current);
+      const scaledY = Math.floor(y * dpr.current);
+
+      if (scaledX >= 0 && scaledX < canvas.width && scaledY >= 0 && scaledY < canvas.height) {
+        const imageData = ctx.getImageData(scaledX, scaledY, 1, 1);
+        const alpha = imageData.data[3];
+
+        // If clicked on non-transparent pixel, treat it as selecting drawn content
+        if (alpha > 0) {
+          console.log(`Selected drawn pixels on layer ${activeLayerId}`);
+          // For now, just log - full implementation would need bounding box detection
+          alert('Selection of drawn pixels is partially implemented. Use the magic wand or lasso tools for selecting drawn content.');
+        }
+      }
+
       // Clicked outside - deselect
       setSelectedLayer(null);
       return;
@@ -685,7 +703,10 @@ export default function DrawCanvas() {
     if (activeToolId === 'fill') {
       const { x, y } = toCanvasCoords(e.clientX, e.clientY);
       const ctx = getActiveLayerCtx();
-      fillArea(ctx, x, y, primaryColor);
+      // Account for DPR scaling - canvas is 2x logical size
+      const scaledX = x * dpr.current;
+      const scaledY = y * dpr.current;
+      fillArea(ctx, scaledX, scaledY, primaryColor);
       saveCanvasState();
       return;
     }
