@@ -549,24 +549,16 @@ export default function DrawCanvas() {
       ctx.imageSmoothingQuality = 'high';
     } else if (activeToolId === 'brush') {
       ctx.globalCompositeOperation = 'source-over';
-
-      // Create soft brush with hardness control
-      if (brushHardness < 1) {
-        const gradient = ctx.createRadialGradient(x, y, 0, x, y, brushSize / 2);
-        const hardnessStop = Math.max(0, brushHardness);
-        gradient.addColorStop(0, primaryColor);
-        gradient.addColorStop(hardnessStop, primaryColor);
-        gradient.addColorStop(1, primaryColor.replace(/[\d.]+\)$/, '0)').replace('rgb', 'rgba'));
-        ctx.strokeStyle = gradient;
-        ctx.fillStyle = gradient;
-      } else {
-        ctx.strokeStyle = primaryColor;
-      }
-
+      ctx.strokeStyle = primaryColor;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
+
+      // For soft brush, we'll draw circles instead of stroke
+      if (brushHardness < 1) {
+        ctx.globalAlpha = 0.1; // Lower alpha for softer buildup
+      }
     } else if (activeToolId === 'smudge') {
       // Smudge tool: sample colors and blend them
       ctx.globalCompositeOperation = 'source-over';
@@ -759,8 +751,32 @@ export default function DrawCanvas() {
       if (!rafId.current) {
         rafId.current = requestAnimationFrame(() => {
           if (pendingDraw.current && last.current) {
-            ctx.lineTo(pendingDraw.current.x, pendingDraw.current.y);
-            ctx.stroke();
+            // Special rendering for soft brush
+            if (activeToolId === 'brush' && brushHardness < 1) {
+              // Draw soft brush with gradient
+              const steps = Math.ceil(Math.hypot(pendingDraw.current.x - last.current.x, pendingDraw.current.y - last.current.y) / 2);
+              for (let i = 0; i <= steps; i++) {
+                const t = i / steps;
+                const px = last.current.x + (pendingDraw.current.x - last.current.x) * t;
+                const py = last.current.y + (pendingDraw.current.y - last.current.y) * t;
+
+                const gradient = ctx.createRadialGradient(px, py, 0, px, py, brushSize / 2);
+                gradient.addColorStop(0, primaryColor);
+                gradient.addColorStop(brushHardness, primaryColor);
+                gradient.addColorStop(1, primaryColor.replace('rgb', 'rgba').replace(')', ', 0)'));
+
+                ctx.fillStyle = gradient;
+                ctx.globalAlpha = 0.15;
+                ctx.beginPath();
+                ctx.arc(px, py, brushSize / 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+              }
+            } else {
+              // Hard edge brush/pencil
+              ctx.lineTo(pendingDraw.current.x, pendingDraw.current.y);
+              ctx.stroke();
+            }
             last.current = pendingDraw.current;
             pendingDraw.current = null;
           }

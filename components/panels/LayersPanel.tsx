@@ -7,7 +7,7 @@ export default function LayersPanel() {
   const { layers, activeLayerId, setActiveLayer, addLayer, toggleLayer, setLayerOpacity, mergeLayerDown } = useDrawly();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string } | null>(null);
   return (
-    <div className="panel" onContextMenu={(e) => e.preventDefault()}>
+    <div className="panel">
       <h3 className="panel-title">
         <Icon name="layers" /> Layers
       </h3>
