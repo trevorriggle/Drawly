@@ -12,6 +12,7 @@ export default function StudioPage() {
   const { activeToolId, setActiveToolId, getExportCanvas, questionnaireAnswers, setFeedback, addLayer, setUploadedImage, layers, undo, redo, canUndo, canRedo } = useDrawly();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadedImageBase64, setUploadedImageBase64] = useState<string | null>(null);
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
 
   // Keyboard shortcuts for undo/redo
   useEffect(() => {
@@ -138,63 +139,93 @@ export default function StudioPage() {
 
   return (
     <div className="shell">
-      <aside className="tool-rail">
-        {DEFAULT_TOOLS.map((t) => (
-          <ToolButton
-            key={t.id}
-            tool={t}
-            active={activeToolId === t.id}
-            onClick={() => setActiveToolId(t.id)}
-          />
-        ))}
+      <aside className="tool-rail" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {DEFAULT_TOOLS.map((t) => (
+            <ToolButton
+              key={t.id}
+              tool={t}
+              active={activeToolId === t.id}
+              onClick={() => setActiveToolId(t.id)}
+            />
+          ))}
+        </div>
 
         {/* Undo/Redo buttons */}
-        <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '1px solid #374151' }}>
+        <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
           <button
             onClick={undo}
             disabled={!canUndo}
             style={{
-              width: '100%',
-              padding: 12,
-              background: canUndo ? '#1f2937' : '#111827',
-              color: canUndo ? 'white' : '#6b7280',
-              border: '1px solid #374151',
-              borderRadius: 8,
+              width: 48,
+              height: 48,
+              background: canUndo ? '#ffffff' : '#f9fafb',
+              color: canUndo ? '#374151' : '#d1d5db',
+              border: canUndo ? '2px solid #e5e7eb' : '2px solid #f3f4f6',
+              borderRadius: 10,
               cursor: canUndo ? 'pointer' : 'not-allowed',
               marginBottom: 8,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 8
+              transition: 'all 0.2s ease'
             }}
             title="Undo (Ctrl+Z)"
+            onMouseEnter={(e) => {
+              if (canUndo) {
+                e.currentTarget.style.background = '#f8fafc';
+                e.currentTarget.style.borderColor = '#cbd5e1';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (canUndo) {
+                e.currentTarget.style.background = '#ffffff';
+                e.currentTarget.style.borderColor = '#e5e7eb';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }
+            }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M9 7H4v5" stroke="currentColor" strokeWidth="2" fill="none"/>
-              <path d="M20 17a7 7 0 0 0-11-5l-5 5" stroke="currentColor" strokeWidth="2" fill="none"/>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M9 7H4v5" stroke="currentColor" strokeWidth="2"/>
+              <path d="M20 17a7 7 0 0 0-11-5l-5 5" stroke="currentColor" strokeWidth="2"/>
             </svg>
           </button>
           <button
             onClick={redo}
             disabled={!canRedo}
             style={{
-              width: '100%',
-              padding: 12,
-              background: canRedo ? '#1f2937' : '#111827',
-              color: canRedo ? 'white' : '#6b7280',
-              border: '1px solid #374151',
-              borderRadius: 8,
+              width: 48,
+              height: 48,
+              background: canRedo ? '#ffffff' : '#f9fafb',
+              color: canRedo ? '#374151' : '#d1d5db',
+              border: canRedo ? '2px solid #e5e7eb' : '2px solid #f3f4f6',
+              borderRadius: 10,
               cursor: canRedo ? 'pointer' : 'not-allowed',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 8
+              transition: 'all 0.2s ease'
             }}
             title="Redo (Ctrl+Shift+Z)"
+            onMouseEnter={(e) => {
+              if (canRedo) {
+                e.currentTarget.style.background = '#f8fafc';
+                e.currentTarget.style.borderColor = '#cbd5e1';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (canRedo) {
+                e.currentTarget.style.background = '#ffffff';
+                e.currentTarget.style.borderColor = '#e5e7eb';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }
+            }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M15 7h5v5" stroke="currentColor" strokeWidth="2" fill="none"/>
-              <path d="M4 17a7 7 0 0 1 11-5l5 5" stroke="currentColor" strokeWidth="2" fill="none"/>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M15 7h5v5" stroke="currentColor" strokeWidth="2"/>
+              <path d="M4 17a7 7 0 0 1 11-5l5 5" stroke="currentColor" strokeWidth="2"/>
             </svg>
           </button>
         </div>
@@ -202,9 +233,43 @@ export default function StudioPage() {
 
       <section className="canvas-wrap">
         <DrawCanvas />
+
+        {/* Toggle button for right panel */}
+        <button
+          onClick={() => setRightPanelCollapsed(!rightPanelCollapsed)}
+          style={{
+            position: 'absolute',
+            top: 20,
+            right: rightPanelCollapsed ? 20 : 300,
+            width: 40,
+            height: 40,
+            background: '#ffffff',
+            border: '2px solid #e5e7eb',
+            borderRadius: 10,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+            zIndex: 100
+          }}
+          title={rightPanelCollapsed ? 'Show panels' : 'Hide panels'}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            {rightPanelCollapsed ? (
+              <path d="M15 18l-6-6 6-6" />
+            ) : (
+              <path d="M9 18l6-6-6-6" />
+            )}
+          </svg>
+        </button>
       </section>
 
-      <aside className="right-panel">
+      <aside className="right-panel" style={{
+        transform: rightPanelCollapsed ? 'translateX(100%)' : 'translateX(0)',
+        transition: 'transform 0.3s ease'
+      }}>
         <ColorPanel />
         <div style={{ height: 20 }} />
         <LayersPanel />

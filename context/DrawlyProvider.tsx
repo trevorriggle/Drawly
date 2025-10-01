@@ -40,7 +40,8 @@ type Action =
   | { type: 'UPDATE_LAYER_IMAGE_POS'; layerId: string; position: { x: number; y: number; width: number; height: number } }
   | { type: 'SAVE_HISTORY'; canvasStates: ImageData[] }
   | { type: 'UNDO' }
-  | { type: 'REDO' };
+  | { type: 'REDO' }
+  | { type: 'MERGE_LAYER_DOWN'; layerId: string };
 
 const initial: State = {
   activeToolId: 'pencil',
@@ -109,6 +110,20 @@ function reducer(state: State, action: Action): State {
         historyIndex: state.historyIndex + 1
       };
     }
+    case 'MERGE_LAYER_DOWN': {
+      const layerIndex = state.layers.findIndex(l => l.id === action.layerId);
+      if (layerIndex === -1 || layerIndex === state.layers.length - 1) return state; // Can't merge bottom layer
+
+      // Remove the layer that was merged (it will be merged into the layer below)
+      const newLayers = state.layers.filter((_, i) => i !== layerIndex);
+
+      return {
+        ...state,
+        layers: newLayers,
+        // If the merged layer was active, set the layer below as active
+        activeLayerId: state.activeLayerId === action.layerId ? newLayers[layerIndex]?.id || newLayers[0]?.id : state.activeLayerId
+      };
+    }
     default: return state;
   }
 }
@@ -134,12 +149,15 @@ const Ctx = createContext<(State & {
   canRedo: boolean;
   registerRestoreCanvas: (fn: (states: ImageData[]) => void) => void;
   getRestoreCanvas: () => ((states: ImageData[]) => void) | null;
+  mergeLayerDown: (layerId: string) => void;
+  registerMergeLayerCanvas: (fn: (layerId: string) => void) => void;
 }) | null>(null);
 
 export function DrawlyProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initial);
   const exportCanvasRef = useRef<(() => string | null) | null>(null);
   const restoreCanvasRef = useRef<((states: ImageData[]) => void) | null>(null);
+  const mergeLayerCanvasRef = useRef<((layerId: string) => void) | null>(null);
 
   const api = useMemo(() => ({
     ...state,
@@ -166,7 +184,18 @@ export function DrawlyProvider({ children }: { children: React.ReactNode }) {
     registerRestoreCanvas: (fn: (states: ImageData[]) => void) => {
       restoreCanvasRef.current = fn;
     },
-    getRestoreCanvas: () => restoreCanvasRef.current
+    getRestoreCanvas: () => restoreCanvasRef.current,
+    mergeLayerDown: (layerId: string) => {
+      // First trigger canvas merge
+      if (mergeLayerCanvasRef.current) {
+        mergeLayerCanvasRef.current(layerId);
+      }
+      // Then remove the layer from state
+      dispatch({ type: 'MERGE_LAYER_DOWN', layerId });
+    },
+    registerMergeLayerCanvas: (fn: (layerId: string) => void) => {
+      mergeLayerCanvasRef.current = fn;
+    }
   }), [state]);
 
   return (

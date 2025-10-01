@@ -14,7 +14,8 @@ import { useDrawly } from '@/context/DrawlyProvider';
  */
 export default function DrawCanvas() {
   const drawlyContext = useDrawly();
-  const { activeToolId, primaryColor, brushSize, setActiveToolId, layers, activeLayerId, uploadedImageForLayer, updateLayerImagePosition, saveHistory, undo, redo, canvasHistory, historyIndex } = drawlyContext;
+  const { activeToolId, primaryColor, brushSize, setActiveToolId, layers, activeLayerId, uploadedImageForLayer, updateLayerImagePosition, saveHistory, undo, redo, canvasHistory, historyIndex, mergeLayerDown } = drawlyContext;
+  const mergeRequestRef = useRef<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const layerCanvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
@@ -76,6 +77,33 @@ export default function DrawCanvas() {
       restoreCanvasState(canvasHistory[historyIndex]);
     }
   }, [historyIndex]);
+
+  // Register merge layer canvas function
+  useEffect(() => {
+    const mergeFunc = (layerId: string) => {
+      const layerIndex = layers.findIndex(l => l.id === layerId);
+      if (layerIndex === -1 || layerIndex === layers.length - 1) return;
+
+      const sourceCanvas = layerCanvasRefs.current.get(layerId);
+      const targetLayer = layers[layerIndex + 1];
+      const targetCanvas = layerCanvasRefs.current.get(targetLayer.id);
+
+      if (!sourceCanvas || !targetCanvas) return;
+
+      const sourceCtx = sourceCanvas.getContext('2d');
+      const targetCtx = targetCanvas.getContext('2d');
+      if (!sourceCtx || !targetCtx) return;
+
+      // Draw source canvas onto target canvas
+      targetCtx.globalAlpha = layers[layerIndex].opacity;
+      targetCtx.drawImage(sourceCanvas, 0, 0);
+      targetCtx.globalAlpha = 1;
+
+      console.log(`Merged layer ${layerId} down into ${targetLayer.id}`);
+    };
+
+    drawlyContext.registerMergeLayerCanvas(mergeFunc);
+  }, [layers, drawlyContext]);
 
   // Export canvas function - register it once
   useEffect(() => {

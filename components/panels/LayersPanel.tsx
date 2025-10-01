@@ -1,9 +1,11 @@
 "use client";
+import { useState } from 'react';
 import { useDrawly } from '@/context/DrawlyProvider';
 import Icon from '@/components/Icon';
 
 export default function LayersPanel() {
-  const { layers, activeLayerId, setActiveLayer, addLayer, toggleLayer, setLayerOpacity } = useDrawly();
+  const { layers, activeLayerId, setActiveLayer, addLayer, toggleLayer, setLayerOpacity, mergeLayerDown } = useDrawly();
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string } | null>(null);
   return (
     <div className="panel">
       <h3 className="panel-title">
@@ -14,6 +16,10 @@ export default function LayersPanel() {
           <div
             key={l.id}
             onClick={() => setActiveLayer(l.id)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setContextMenu({ x: e.clientX, y: e.clientY, layerId: l.id });
+            }}
             style={{
               display:'flex', flexDirection: 'column', gap:8, padding:10,
               border: l.id === activeLayerId ? '2px solid #3b82f6' : '1px solid #e5e7eb',
@@ -80,6 +86,71 @@ export default function LayersPanel() {
       >
         + Add Layer
       </button>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <>
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 999
+            }}
+            onClick={() => setContextMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setContextMenu(null);
+            }}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              top: contextMenu.y,
+              left: contextMenu.x,
+              background: '#ffffff',
+              border: '1px solid #e5e7eb',
+              borderRadius: 8,
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+              padding: 4,
+              zIndex: 1000,
+              minWidth: 160
+            }}
+          >
+            <button
+              onClick={() => {
+                mergeLayerDown(contextMenu.layerId);
+                setContextMenu(null);
+              }}
+              disabled={layers.findIndex(l => l.id === contextMenu.layerId) === layers.length - 1}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                background: 'transparent',
+                border: 'none',
+                textAlign: 'left',
+                fontSize: 14,
+                cursor: layers.findIndex(l => l.id === contextMenu.layerId) === layers.length - 1 ? 'not-allowed' : 'pointer',
+                borderRadius: 6,
+                color: layers.findIndex(l => l.id === contextMenu.layerId) === layers.length - 1 ? '#9ca3af' : '#374151',
+                transition: 'background 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                if (layers.findIndex(l => l.id === contextMenu.layerId) !== layers.length - 1) {
+                  e.currentTarget.style.background = '#f3f4f6';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              Merge Down
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
