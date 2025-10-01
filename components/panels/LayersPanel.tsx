@@ -18,6 +18,8 @@ export default function LayersPanel() {
             onClick={() => setActiveLayer(l.id)}
             onContextMenu={(e) => {
               e.preventDefault();
+              e.stopPropagation();
+              console.log('Right click on layer:', l.id, 'at', e.clientX, e.clientY);
               setContextMenu({ x: e.clientX, y: e.clientY, layerId: l.id });
             }}
             style={{
@@ -88,7 +90,9 @@ export default function LayersPanel() {
       </button>
 
       {/* Context Menu */}
-      {contextMenu && (
+      {contextMenu && (() => {
+        console.log('Rendering context menu at', contextMenu);
+        return (
         <>
           <div
             style={{
@@ -150,7 +154,8 @@ export default function LayersPanel() {
             </button>
           </div>
         </>
-      )}
+      );
+      })()}
     </div>
   );
 }
