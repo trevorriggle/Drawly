@@ -18,6 +18,8 @@ export default function DrawCanvas() {
   const mergeRequestRef = useRef<string | null>(null);
   const brushStampCache = useRef<Map<string, HTMLCanvasElement>>(new Map());
   const smudgeBuffer = useRef<ImageData | null>(null);
+  const cloneSource = useRef<{x: number; y: number} | null>(null);
+  const cloneOffset = useRef<{dx: number; dy: number} | null>(null);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const layerCanvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
@@ -28,6 +30,8 @@ export default function DrawCanvas() {
   const isDrawingLine = useRef(false);
   const lineStart = useRef<{x:number;y:number}|null>(null);
   const linePreviewImageData = useRef<ImageData | null>(null);
+  const gradientStart = useRef<{x:number;y:number}|null>(null);
+  const gradientPreviewImageData = useRef<ImageData | null>(null);
   const last = useRef<{x:number;y:number}|null>(null);
   const rafId = useRef<number | null>(null);
   const pendingDraw = useRef<{x: number, y: number} | null>(null);
@@ -38,8 +42,10 @@ export default function DrawCanvas() {
   const [moveStartPos, setMoveStartPos] = useState<{x: number, y: number} | null>(null);
   const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
   const [resizingHandle, setResizingHandle] = useState<'tl' | 'tr' | 'bl' | 'br' | null>(null);
+  const [lassoPath, setLassoPath] = useState<{x: number; y: number}[]>([]);
   const [textInput, setTextInput] = useState<{x: number, y: number, text: string} | null>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
+  const [shapeFillMode, setShapeFillMode] = useState<'stroke' | 'fill' | 'both'>('stroke');
 
   // Helper functions for undo/redo
   function saveCanvasState() {
@@ -98,6 +104,23 @@ export default function DrawCanvas() {
   useEffect(() => {
     drawlyContext.registerRestoreCanvas(restoreCanvasState);
   }, [layers, drawlyContext]);
+
+  // Handle keyboard shortcuts for shape fill mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['rectangle', 'circle', 'triangle'].includes(activeToolId) && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setShapeFillMode(prev => {
+          if (prev === 'stroke') return 'fill';
+          if (prev === 'fill') return 'both';
+          return 'stroke';
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeToolId]);
 
   // Save initial canvas state on mount
   useEffect(() => {
@@ -667,8 +690,51 @@ export default function DrawCanvas() {
       return;
     }
 
+    // Handle lasso selection
+    if (activeToolId === 'lasso') {
+      const { x, y } = toCanvasCoords(e.clientX, e.clientY);
+      setLassoPath([{ x, y }]);
+      isDrawing.current = true;
+      last.current = { x: e.clientX, y: e.clientY };
+      return;
+    }
+
+    // Handle magic wand selection
+    if (activeToolId === 'wand') {
+      const { x, y } = toCanvasCoords(e.clientX, e.clientY);
+      const ctx = getActiveLayerCtx();
+      const canvas = getActiveLayerCanvas();
+
+      // Get pixel color at click position
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const pixelIndex = (Math.floor(y) * canvas.width + Math.floor(x)) * 4;
+      const targetR = imageData.data[pixelIndex];
+      const targetG = imageData.data[pixelIndex + 1];
+      const targetB = imageData.data[pixelIndex + 2];
+
+      console.log(`Magic wand at (${x},${y}): RGB(${targetR},${targetG},${targetB})`);
+
+      // Create selection mask (for now, just log - actual selection would require more state)
+      const tolerance = 32; // Color similarity threshold
+      let selectedPixels = 0;
+
+      for (let i = 0; i < imageData.data.length; i += 4) {
+        const r = imageData.data[i];
+        const g = imageData.data[i + 1];
+        const b = imageData.data[i + 2];
+
+        const colorDiff = Math.abs(r - targetR) + Math.abs(g - targetG) + Math.abs(b - targetB);
+        if (colorDiff <= tolerance) {
+          selectedPixels++;
+        }
+      }
+
+      console.log(`Selected ${selectedPixels} similar pixels`);
+      return;
+    }
+
     // Tools that truly don't draw
-    const nonDrawingTools = ['lasso', 'wand', 'transform', 'crop', 'pan'] as const;
+    const nonDrawingTools = ['transform', 'crop', 'pan'] as const;
     if (nonDrawingTools.includes(activeToolId as any)) {
       console.log(`${activeToolId} tool selected - no drawing action`);
       return;
@@ -757,19 +823,35 @@ export default function DrawCanvas() {
         console.error('Failed to sample for smudge:', e);
       }
     } else if (activeToolId === 'clone') {
-      // Clone tool: copy from another area (simplified for now)
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = primaryColor;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      // Clone tool: Alt+click to set source, then paint from that offset
+      if (e.altKey) {
+        // Set clone source
+        cloneSource.current = { x, y };
+        cloneOffset.current = null;
+        return; // Don't start drawing
+      } else if (cloneSource.current) {
+        // Set offset on first click after setting source
+        if (!cloneOffset.current) {
+          cloneOffset.current = {
+            dx: x - cloneSource.current.x,
+            dy: y - cloneSource.current.y
+          };
+        }
+        ctx.globalCompositeOperation = 'source-over';
+        isDrawing.current = true;
+      }
     } else if (activeToolId === 'gradient') {
-      // Gradient tool: create gradient brush
-      const gradient = ctx.createLinearGradient(x - brushSize, y - brushSize, x + brushSize, y + brushSize);
-      gradient.addColorStop(0, primaryColor);
-      gradient.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.strokeStyle = gradient;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      // Gradient tool: drag from start to end point to create gradient
+      gradientStart.current = { x, y };
+
+      // Save current canvas state for preview
+      const canvas = getActiveLayerCanvas();
+      if (canvas) {
+        const tempCtx = canvas.getContext('2d');
+        if (tempCtx) {
+          gradientPreviewImageData.current = tempCtx.getImageData(0, 0, canvas.width, canvas.height);
+        }
+      }
     } else {
       // Default behavior for other tools
       ctx.globalCompositeOperation = 'source-over';
@@ -795,7 +877,7 @@ export default function DrawCanvas() {
       setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
     }
 
-    if (!last.current && !isDrawingLine.current && !movingLayer && !resizingHandle) return;
+    if (!last.current && !isDrawingLine.current && !gradientStart.current && !movingLayer && !resizingHandle) return;
 
     // resizing image
     if (resizingHandle && selectedLayer && moveStartPos) {
@@ -891,6 +973,28 @@ export default function DrawCanvas() {
     const ctx = getActiveLayerCtx();
     const { x, y } = toCanvasCoords(e.clientX, e.clientY);
 
+    // Handle gradient preview
+    if (gradientStart.current && gradientPreviewImageData.current) {
+      // Restore canvas to state before preview
+      ctx.putImageData(gradientPreviewImageData.current, 0, 0);
+
+      // Draw gradient preview
+      const gradient = ctx.createLinearGradient(
+        gradientStart.current.x,
+        gradientStart.current.y,
+        x,
+        y
+      );
+      gradient.addColorStop(0, primaryColor);
+      gradient.addColorStop(1, 'rgba(0,0,0,0)'); // Transparent end
+
+      // Fill entire canvas with gradient
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
+      return;
+    }
+
     // Handle line/shape tool preview
     if (isDrawingLine.current && lineStart.current && linePreviewImageData.current) {
       // Restore canvas to state before preview
@@ -929,6 +1033,13 @@ export default function DrawCanvas() {
 
       ctx.stroke();
       ctx.setLineDash([]); // Reset line dash
+      return;
+    }
+
+    // Handle lasso path building
+    if (activeToolId === 'lasso' && isDrawing.current) {
+      const { x: canvasX, y: canvasY } = toCanvasCoords(e.clientX, e.clientY);
+      setLassoPath(prev => [...prev, { x: canvasX, y: canvasY }]);
       return;
     }
 
@@ -1008,6 +1119,47 @@ export default function DrawCanvas() {
                 Math.min(radius * 2, canvas.height - (pendingDraw.current.y - radius))
               );
 
+            } else if (activeToolId === 'clone' && cloneSource.current && cloneOffset.current) {
+              // Clone stamp tool - sample from source and paint at current location
+              const canvas = getActiveLayerCanvas();
+              const radius = Math.ceil(brushSize / 2);
+
+              // Calculate source position based on current position and offset
+              const sourceX = pendingDraw.current.x - cloneOffset.current.dx;
+              const sourceY = pendingDraw.current.y - cloneOffset.current.dy;
+
+              try {
+                // Sample from source location
+                const sourceData = ctx.getImageData(
+                  Math.max(0, sourceX - radius),
+                  Math.max(0, sourceY - radius),
+                  Math.min(radius * 2, canvas.width - (sourceX - radius)),
+                  Math.min(radius * 2, canvas.height - (sourceY - radius))
+                );
+
+                // Paint at current location with circular brush mask
+                const stamp = getBrushStamp(brushSize, brushHardness, '#000000');
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = sourceData.width;
+                tempCanvas.height = sourceData.height;
+                const tempCtx = tempCanvas.getContext('2d')!;
+
+                // Draw source data
+                tempCtx.putImageData(sourceData, 0, 0);
+
+                // Apply circular mask
+                tempCtx.globalCompositeOperation = 'destination-in';
+                tempCtx.drawImage(stamp, 0, 0, sourceData.width, sourceData.height);
+
+                // Paint to canvas
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.drawImage(tempCanvas,
+                  Math.max(0, pendingDraw.current.x - radius),
+                  Math.max(0, pendingDraw.current.y - radius)
+                );
+              } catch (e) {
+                console.error('Failed to clone stamp:', e);
+              }
             } else if (activeToolId === 'brush' && brushHardness < 1) {
               // Optimized soft brush rendering
               const stamp = getBrushStamp(brushSize, brushHardness, primaryColor);
@@ -1063,6 +1215,32 @@ export default function DrawCanvas() {
       return;
     }
 
+    // Handle gradient completion
+    if (gradientStart.current && gradientPreviewImageData.current) {
+      const ctx = getActiveLayerCtx();
+      const { x, y } = toCanvasCoords(e.clientX, e.clientY);
+
+      // Draw final gradient
+      const gradient = ctx.createLinearGradient(
+        gradientStart.current.x,
+        gradientStart.current.y,
+        x,
+        y
+      );
+      gradient.addColorStop(0, primaryColor);
+      gradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
+
+      gradientStart.current = null;
+      gradientPreviewImageData.current = null;
+
+      saveCanvasState();
+      return;
+    }
+
     // Handle line/shape tool completion
     if (isDrawingLine.current && lineStart.current) {
       const ctx = getActiveLayerCtx();
@@ -1071,6 +1249,7 @@ export default function DrawCanvas() {
       // Draw final shape
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = primaryColor;
+      ctx.fillStyle = primaryColor;
       ctx.lineWidth = brushSize;
       ctx.lineCap = 'round';
       ctx.setLineDash([]); // Solid line
@@ -1099,7 +1278,13 @@ export default function DrawCanvas() {
         ctx.closePath();
       }
 
-      ctx.stroke();
+      // Apply fill/stroke based on mode
+      if (shapeFillMode === 'fill' || shapeFillMode === 'both') {
+        ctx.fill();
+      }
+      if (shapeFillMode === 'stroke' || shapeFillMode === 'both') {
+        ctx.stroke();
+      }
 
       isDrawingLine.current = false;
       lineStart.current = null;
@@ -1107,6 +1292,16 @@ export default function DrawCanvas() {
 
       // Save state after drawing line/shape
       saveCanvasState();
+    }
+
+    // Handle lasso completion
+    if (activeToolId === 'lasso' && lassoPath.length > 0) {
+      // Close the path and create a selection
+      console.log('Lasso selection completed with', lassoPath.length, 'points');
+      // For now, just clear the path (actual selection masking would be more complex)
+      setLassoPath([]);
+      isDrawing.current = false;
+      return;
     }
 
     // Save state after brush/pencil/eraser drawing
@@ -1265,6 +1460,29 @@ export default function DrawCanvas() {
         />
       )}
 
+      {/* Lasso selection path preview */}
+      {lassoPath.length > 0 && (
+        <svg
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+            zIndex: 999
+          }}
+        >
+          <polyline
+            points={lassoPath.map(p => `${view.x + p.x * view.scale},${view.y + p.y * view.scale}`).join(' ')}
+            fill="none"
+            stroke="#3b82f6"
+            strokeWidth="2"
+            strokeDasharray="5,5"
+          />
+        </svg>
+      )}
+
       {/* Text input overlay */}
       {textInput && (
         <input
@@ -1327,13 +1545,13 @@ export default function DrawCanvas() {
         {activeToolId === 'brush' && <span style={{ marginLeft: 8, color: '#10b981' }}>(B) DRAWS</span>}
         {activeToolId === 'eraser' && <span style={{ marginLeft: 8, color: '#ef4444' }}>(E) ERASES</span>}
         {activeToolId === 'smudge' && <span style={{ marginLeft: 8, color: '#10b981' }}>SMUDGES</span>}
+        {activeToolId === 'clone' && <span style={{ marginLeft: 8, color: '#10b981' }}>ALT+CLICK to set source</span>}
         {activeToolId === 'fill' && <span style={{ marginLeft: 8, color: '#10b981' }}>(G) FILLS</span>}
-        {activeToolId === 'gradient' && <span style={{ marginLeft: 8, color: '#10b981' }}>GRADIENT</span>}
-        {activeToolId === 'rectangle' && <span style={{ marginLeft: 8, color: '#10b981' }}>(U) RECTANGLES</span>}
-        {activeToolId === 'circle' && <span style={{ marginLeft: 8, color: '#10b981' }}>(C) CIRCLES</span>}
-        {activeToolId === 'triangle' && <span style={{ marginLeft: 8, color: '#10b981' }}>(Y) TRIANGLES</span>}
+        {activeToolId === 'gradient' && <span style={{ marginLeft: 8, color: '#10b981' }}>DRAG to create gradient</span>}
+        {activeToolId === 'rectangle' && <span style={{ marginLeft: 8, color: '#10b981' }}>(U) {shapeFillMode.toUpperCase()} - F to toggle</span>}
+        {activeToolId === 'circle' && <span style={{ marginLeft: 8, color: '#10b981' }}>(C) {shapeFillMode.toUpperCase()} - F to toggle</span>}
+        {activeToolId === 'triangle' && <span style={{ marginLeft: 8, color: '#10b981' }}>(Y) {shapeFillMode.toUpperCase()} - F to toggle</span>}
         {activeToolId === 'line' && <span style={{ marginLeft: 8, color: '#10b981' }}>(L) LINES</span>}
-        {activeToolId === 'clone' && <span style={{ marginLeft: 8, color: '#10b981' }}>CLONES</span>}
         {activeToolId === 'text' && <span style={{ marginLeft: 8, color: '#10b981' }}>(T) CLICK TO TYPE</span>}
         {activeToolId === 'pan' && <span style={{ marginLeft: 8, color: '#3b82f6' }}>(H) DRAG TO PAN</span>}
         {['select', 'lasso', 'wand', 'transform', 'crop'].includes(activeToolId) && <span style={{ marginLeft: 8, color: '#f59e0b' }}>NO DRAW</span>}
