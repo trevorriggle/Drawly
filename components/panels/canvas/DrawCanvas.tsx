@@ -38,6 +38,8 @@ export default function DrawCanvas() {
   const [moveStartPos, setMoveStartPos] = useState<{x: number, y: number} | null>(null);
   const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
   const [resizingHandle, setResizingHandle] = useState<'tl' | 'tr' | 'bl' | 'br' | null>(null);
+  const [textInput, setTextInput] = useState<{x: number, y: number, text: string} | null>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
 
   // Helper functions for undo/redo
   function saveCanvasState() {
@@ -75,8 +77,17 @@ export default function DrawCanvas() {
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.putImageData(imageData, 0, 0);
+
+            // Generate thumbnail
+            const thumbCanvas = document.createElement('canvas');
+            thumbCanvas.width = 64;
+            thumbCanvas.height = 64;
+            const thumbCtx = thumbCanvas.getContext('2d')!;
+            thumbCtx.drawImage(canvas, 0, 0, 64, 64);
+            const thumbnail = thumbCanvas.toDataURL('image/png');
+
             // Also update layer state to keep it in sync
-            updateLayerCanvasData(layer.id, imageData);
+            updateLayerCanvasData(layer.id, imageData, thumbnail);
           }
         }
       }
@@ -123,11 +134,24 @@ export default function DrawCanvas() {
       targetCtx.drawImage(sourceCanvas, 0, 0);
       targetCtx.globalAlpha = 1;
 
+      // Save the merged result to layer state
+      const mergedImageData = targetCtx.getImageData(0, 0, targetCanvas.width, targetCanvas.height);
+
+      // Generate thumbnail for merged layer
+      const thumbCanvas = document.createElement('canvas');
+      thumbCanvas.width = 64;
+      thumbCanvas.height = 64;
+      const thumbCtx = thumbCanvas.getContext('2d')!;
+      thumbCtx.drawImage(targetCanvas, 0, 0, 64, 64);
+      const thumbnail = thumbCanvas.toDataURL('image/png');
+
+      updateLayerCanvasData(targetLayer.id, mergedImageData, thumbnail);
+
       console.log(`Merged layer ${layerId} down into ${targetLayer.id}`);
     };
 
     drawlyContext.registerMergeLayerCanvas(mergeFunc);
-  }, [layers, drawlyContext]);
+  }, [layers, drawlyContext, updateLayerCanvasData]);
 
   // Export canvas function - register it once
   useEffect(() => {
@@ -207,11 +231,13 @@ export default function DrawCanvas() {
     return () => resizeObserver.disconnect();
   }, []); // Empty dependency array - only run once
 
-  // Proper flood fill function with safety limit
+  // Optimized scanline flood fill algorithm
   function fillArea(ctx: CanvasRenderingContext2D, x: number, y: number, fillColor: string) {
     const canvas = ctx.canvas;
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
+    const width = canvas.width;
+    const height = canvas.height;
 
     // Convert fill color to RGB
     const fillColorRgb = hexToRgb(fillColor);
@@ -220,47 +246,72 @@ export default function DrawCanvas() {
     const startX = Math.floor(x);
     const startY = Math.floor(y);
 
-    if (startX < 0 || startX >= canvas.width || startY < 0 || startY >= canvas.height) return;
+    if (startX < 0 || startX >= width || startY < 0 || startY >= height) return;
 
-    const startIndex = (startY * canvas.width + startX) * 4;
+    const startIndex = (startY * width + startX) * 4;
     const startR = data[startIndex];
     const startG = data[startIndex + 1];
     const startB = data[startIndex + 2];
     const startA = data[startIndex + 3];
 
     // Don't fill if already the same color
-    if (startR === fillColorRgb.r && startG === fillColorRgb.g && startB === fillColorRgb.b) return;
+    if (startR === fillColorRgb.r && startG === fillColorRgb.g && startB === fillColorRgb.b && startA === 255) return;
 
-    const stack: [number, number][] = [[startX, startY]];
-    const visited = new Set<string>();
-    const MAX_PIXELS = 500000; // Safety limit
+    // Use typed array for visited tracking (much faster than Set)
+    const visited = new Uint8Array(width * height);
+    const stack: number[] = [startY]; // Just store Y values for scanline
+    const MAX_PIXELS = 2000000; // Increased limit
     let pixelsFilled = 0;
 
+    // Helper to check if pixel matches start color
+    const matchesStart = (idx: number) => {
+      return data[idx] === startR && data[idx + 1] === startG &&
+             data[idx + 2] === startB && data[idx + 3] === startA;
+    };
+
+    // Scanline fill algorithm
     while (stack.length > 0 && pixelsFilled < MAX_PIXELS) {
-      const [px, py] = stack.pop()!;
-      const key = `${px},${py}`;
+      const y = stack.pop()!;
+      if (y < 0 || y >= height) continue;
 
-      if (visited.has(key) || px < 0 || px >= canvas.width || py < 0 || py >= canvas.height) continue;
-      visited.add(key);
+      // Find leftmost pixel in this row
+      let left = startX;
+      let rowIndex = y * width;
+      while (left > 0 && matchesStart((rowIndex + left - 1) * 4)) {
+        left--;
+      }
 
-      const index = (py * canvas.width + px) * 4;
-      const r = data[index];
-      const g = data[index + 1];
-      const b = data[index + 2];
-      const a = data[index + 3];
+      // Find rightmost pixel in this row
+      let right = startX;
+      while (right < width - 1 && matchesStart((rowIndex + right + 1) * 4)) {
+        right++;
+      }
 
-      // Check if pixel matches start color
-      if (r !== startR || g !== startG || b !== startB || a !== startA) continue;
+      // Fill this scanline
+      for (let px = left; px <= right; px++) {
+        const visitIdx = rowIndex + px;
+        if (visited[visitIdx]) continue;
+        visited[visitIdx] = 1;
 
-      // Fill pixel
-      data[index] = fillColorRgb.r;
-      data[index + 1] = fillColorRgb.g;
-      data[index + 2] = fillColorRgb.b;
-      data[index + 3] = 255;
-      pixelsFilled++;
+        const idx = visitIdx * 4;
+        if (!matchesStart(idx)) continue;
 
-      // Add neighbors to stack
-      stack.push([px + 1, py], [px - 1, py], [px, py + 1], [px, py - 1]);
+        data[idx] = fillColorRgb.r;
+        data[idx + 1] = fillColorRgb.g;
+        data[idx + 2] = fillColorRgb.b;
+        data[idx + 3] = 255;
+        pixelsFilled++;
+      }
+
+      // Check scanlines above and below
+      for (let px = left; px <= right; px++) {
+        if (y > 0 && matchesStart(((y - 1) * width + px) * 4) && !visited[(y - 1) * width + px]) {
+          stack.push(y - 1);
+        }
+        if (y < height - 1 && matchesStart(((y + 1) * width + px) * 4) && !visited[(y + 1) * width + px]) {
+          stack.push(y + 1);
+        }
+      }
     }
 
     ctx.putImageData(imageData, 0, 0);
@@ -306,13 +357,17 @@ export default function DrawCanvas() {
     const rgb = hexToRgb(color);
     if (!rgb) return stampCanvas;
 
-    // Draw brush using pixel manipulation for better hardness control
+    // Draw brush using pixel manipulation - Photoshop-style hardness
     const imageData = stampCtx.createImageData(stampSize, stampSize);
     const data = imageData.data;
 
-    // Pre-calculate exponent for performance
-    const exponent = roundedHardness >= 0.99 ? 0 : 0.5 + (1 - roundedHardness) * 2.5;
-    const radiusSq = radius * radius; // Use squared distance to avoid sqrt
+    // Photoshop hardness curve:
+    // - 100% (1.0): Hard edge circle
+    // - 0%: Maximum soft falloff
+    // The hardness determines where the falloff starts relative to radius
+    const hardEdgeRadius = radius * roundedHardness;
+    const hardEdgeRadiusSq = hardEdgeRadius * hardEdgeRadius;
+    const radiusSq = radius * radius;
 
     for (let y = 0; y < stampSize; y++) {
       for (let x = 0; x < stampSize; x++) {
@@ -323,12 +378,20 @@ export default function DrawCanvas() {
         let alpha = 0;
         if (distanceSq <= radiusSq) {
           if (roundedHardness >= 0.99) {
-            // Fully hard - just a circle
+            // 100% hardness - sharp edge
+            alpha = 1;
+          } else if (distanceSq <= hardEdgeRadiusSq) {
+            // Inside hard edge - full opacity
             alpha = 1;
           } else {
-            // Soft brush with proper falloff
-            const normalizedDist = Math.sqrt(distanceSq) / radius;
-            alpha = Math.pow(1 - normalizedDist, exponent);
+            // In falloff zone - smooth gradient from hard edge to outer edge
+            const distance = Math.sqrt(distanceSq);
+            const falloffDistance = distance - hardEdgeRadius;
+            const falloffRange = radius - hardEdgeRadius;
+            const falloffRatio = falloffDistance / falloffRange;
+
+            // Use cosine curve for smooth, natural falloff (like Photoshop)
+            alpha = Math.cos(falloffRatio * Math.PI / 2);
           }
         }
 
@@ -531,19 +594,9 @@ export default function DrawCanvas() {
 
     // Handle special non-drawing tools
     if (activeToolId === 'text') {
-      // Simple text input (placeholder)
-      const text = prompt('Enter text:');
-      if (text) {
-        const { x, y } = toCanvasCoords(e.clientX, e.clientY);
-        const ctx = getActiveLayerCtx();
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.font = `${brushSize * 4}px Arial`;
-        ctx.fillStyle = primaryColor;
-        ctx.textBaseline = 'top';
-        ctx.fillText(text, x, y);
-        saveCanvasState();
-      }
+      const { x, y } = toCanvasCoords(e.clientX, e.clientY);
+      setTextInput({ x, y, text: '' });
+      // Focus will be handled by useEffect
       return;
     }
 
@@ -1209,6 +1262,63 @@ export default function DrawCanvas() {
             pointerEvents: 'none',
             zIndex: 1000
           }}
+        />
+      )}
+
+      {/* Text input overlay */}
+      {textInput && (
+        <input
+          ref={textInputRef}
+          type="text"
+          value={textInput.text}
+          onChange={(e) => setTextInput({ ...textInput, text: e.target.value })}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              // Commit text to canvas
+              if (textInput.text.trim()) {
+                const ctx = getActiveLayerCtx();
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.font = `${brushSize * 4}px Arial`;
+                ctx.fillStyle = primaryColor;
+                ctx.textBaseline = 'top';
+                ctx.fillText(textInput.text, textInput.x, textInput.y);
+                saveCanvasState();
+              }
+              setTextInput(null);
+            } else if (e.key === 'Escape') {
+              setTextInput(null);
+            }
+          }}
+          onBlur={() => {
+            // Commit on blur
+            if (textInput.text.trim()) {
+              const ctx = getActiveLayerCtx();
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = 'high';
+              ctx.font = `${brushSize * 4}px Arial`;
+              ctx.fillStyle = primaryColor;
+              ctx.textBaseline = 'top';
+              ctx.fillText(textInput.text, textInput.x, textInput.y);
+              saveCanvasState();
+            }
+            setTextInput(null);
+          }}
+          style={{
+            position: 'absolute',
+            left: view.x + textInput.x * view.scale,
+            top: view.y + textInput.y * view.scale,
+            fontSize: `${brushSize * 4 * view.scale}px`,
+            fontFamily: 'Arial',
+            color: primaryColor,
+            background: 'transparent',
+            border: '2px dashed rgba(59, 130, 246, 0.5)',
+            outline: 'none',
+            padding: '2px 4px',
+            minWidth: '100px',
+            zIndex: 1001
+          }}
+          autoFocus
         />
       )}
       <div style={{ position:'absolute', left:12, bottom:12, opacity:.8, fontSize:12, background: 'rgba(0,0,0,0.8)', color: 'white', padding: '8px 12px', borderRadius: 6 }}>
