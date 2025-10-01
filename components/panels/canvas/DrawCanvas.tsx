@@ -17,6 +17,7 @@ export default function DrawCanvas() {
   const { activeToolId, primaryColor, brushSize, brushHardness, setActiveToolId, layers, activeLayerId, uploadedImageForLayer, updateLayerImagePosition, saveHistory, undo, redo, canvasHistory, historyIndex, mergeLayerDown } = drawlyContext;
   const mergeRequestRef = useRef<string | null>(null);
   const brushStampCache = useRef<Map<string, HTMLCanvasElement>>(new Map());
+  const smudgeBuffer = useRef<ImageData | null>(null);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const layerCanvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
@@ -282,22 +283,45 @@ export default function DrawCanvas() {
     const centerY = stampSize / 2;
     const radius = size / 2;
 
-    // Create radial gradient brush
-    const gradient = stampCtx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
-
     // Parse color to RGB
     const rgb = hexToRgb(color);
     if (!rgb) return stampCanvas;
 
-    // Hardness controls where the falloff begins
-    const innerRadius = hardness; // 0.0 to 1.0
+    // Draw brush using pixel manipulation for better hardness control
+    const imageData = stampCtx.createImageData(stampSize, stampSize);
+    const data = imageData.data;
 
-    gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`);
-    gradient.addColorStop(innerRadius, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`);
-    gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+    for (let y = 0; y < stampSize; y++) {
+      for (let x = 0; x < stampSize; x++) {
+        const dx = x - centerX;
+        const dy = y - centerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const normalizedDist = distance / radius;
 
-    stampCtx.fillStyle = gradient;
-    stampCtx.fillRect(0, 0, stampSize, stampSize);
+        let alpha = 0;
+        if (normalizedDist <= 1) {
+          // Hardness affects the falloff curve
+          // Higher hardness = sharper edge, lower = softer
+          if (hardness >= 0.99) {
+            // Fully hard - just a circle
+            alpha = normalizedDist <= 1 ? 1 : 0;
+          } else {
+            // Soft brush with proper falloff
+            // Map hardness to a curve exponent (higher = sharper falloff)
+            const exponent = 0.5 + (1 - hardness) * 2.5; // Range: 0.5 to 3.0
+            alpha = Math.pow(1 - normalizedDist, exponent);
+          }
+        }
+
+        const idx = (y * stampSize + x) * 4;
+        data[idx] = rgb.r;
+        data[idx + 1] = rgb.g;
+        data[idx + 2] = rgb.b;
+        data[idx + 3] = Math.round(alpha * 255);
+      }
+    }
+
+    stampCtx.putImageData(imageData, 0, 0);
 
     // Cache it
     brushStampCache.current.set(key, stampCanvas);
@@ -627,14 +651,24 @@ export default function DrawCanvas() {
         ctx.lineJoin = 'round';
       }
     } else if (activeToolId === 'smudge') {
-      // Smudge tool: sample colors and blend them
+      // Smudge tool: sample colors at starting point
       ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = primaryColor;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
-      ctx.globalAlpha = 0.3; // Blend effect
+
+      // Sample a circular area under the brush
+      const radius = Math.ceil(brushSize / 2);
+      const sampleSize = radius * 2;
+      try {
+        smudgeBuffer.current = ctx.getImageData(
+          Math.max(0, x - radius),
+          Math.max(0, y - radius),
+          Math.min(sampleSize, canvas.width - (x - radius)),
+          Math.min(sampleSize, canvas.height - (y - radius))
+        );
+      } catch (e) {
+        console.error('Failed to sample for smudge:', e);
+      }
     } else if (activeToolId === 'clone') {
       // Clone tool: copy from another area (simplified for now)
       ctx.globalCompositeOperation = 'source-over';
@@ -818,9 +852,76 @@ export default function DrawCanvas() {
       if (!rafId.current) {
         rafId.current = requestAnimationFrame(() => {
           if (pendingDraw.current && last.current) {
-            // Photoshop-style brush rendering
-            if (activeToolId === 'brush' && brushHardness < 1) {
-              // Get pre-rendered brush stamp
+            // Smudge tool - blend sampled pixels
+            if (activeToolId === 'smudge' && smudgeBuffer.current) {
+              const radius = Math.ceil(brushSize / 2);
+              const strength = 0.5; // Smudge strength (0-1)
+
+              // Get current pixels at the target location
+              let currentPixels;
+              try {
+                currentPixels = ctx.getImageData(
+                  Math.max(0, pendingDraw.current.x - radius),
+                  Math.max(0, pendingDraw.current.y - radius),
+                  Math.min(radius * 2, canvas.width - (pendingDraw.current.x - radius)),
+                  Math.min(radius * 2, canvas.height - (pendingDraw.current.y - radius))
+                );
+              } catch (e) {
+                console.error('Failed to get pixels for smudge:', e);
+                last.current = pendingDraw.current;
+                pendingDraw.current = null;
+                rafId.current = null;
+                return;
+              }
+
+              // Blend the smudge buffer with current pixels
+              const smudgeData = smudgeBuffer.current.data;
+              const currentData = currentPixels.data;
+              const blendedData = new Uint8ClampedArray(currentData.length);
+
+              for (let i = 0; i < currentData.length; i += 4) {
+                // Calculate distance from center for circular brush
+                const pixelIndex = i / 4;
+                const px = pixelIndex % currentPixels.width;
+                const py = Math.floor(pixelIndex / currentPixels.width);
+                const dx = px - radius;
+                const dy = py - radius;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const normalizedDist = dist / radius;
+
+                // Apply circular falloff
+                let blendAmount = normalizedDist <= 1 ? (1 - normalizedDist) * strength : 0;
+
+                // Blend colors
+                if (i < smudgeData.length) {
+                  blendedData[i] = currentData[i] * (1 - blendAmount) + smudgeData[i] * blendAmount;
+                  blendedData[i + 1] = currentData[i + 1] * (1 - blendAmount) + smudgeData[i + 1] * blendAmount;
+                  blendedData[i + 2] = currentData[i + 2] * (1 - blendAmount) + smudgeData[i + 2] * blendAmount;
+                  blendedData[i + 3] = Math.max(currentData[i + 3], smudgeData[i + 3]); // Keep max alpha
+                } else {
+                  blendedData[i] = currentData[i];
+                  blendedData[i + 1] = currentData[i + 1];
+                  blendedData[i + 2] = currentData[i + 2];
+                  blendedData[i + 3] = currentData[i + 3];
+                }
+              }
+
+              currentPixels.data.set(blendedData);
+              ctx.putImageData(currentPixels,
+                Math.max(0, pendingDraw.current.x - radius),
+                Math.max(0, pendingDraw.current.y - radius)
+              );
+
+              // Update smudge buffer to the blended result for continuous smudging
+              smudgeBuffer.current = ctx.getImageData(
+                Math.max(0, pendingDraw.current.x - radius),
+                Math.max(0, pendingDraw.current.y - radius),
+                Math.min(radius * 2, canvas.width - (pendingDraw.current.x - radius)),
+                Math.min(radius * 2, canvas.height - (pendingDraw.current.y - radius))
+              );
+
+            } else if (activeToolId === 'brush' && brushHardness < 1) {
+              // Photoshop-style brush rendering
               const stamp = getBrushStamp(brushSize, brushHardness, primaryColor);
 
               // Interpolate between points for smooth strokes
@@ -923,6 +1024,7 @@ export default function DrawCanvas() {
     isPanning.current = false;
     isDrawing.current = false;
     last.current = null;
+    smudgeBuffer.current = null; // Clear smudge buffer
 
     // Clean up any pending RAF
     if (rafId.current) {
