@@ -233,14 +233,20 @@ export default function StudioPage() {
 
       <section className="canvas-wrap">
         <DrawCanvas />
+      </section>
 
-        {/* Toggle button for right panel */}
+      <aside className="right-panel" style={{
+        transform: rightPanelCollapsed ? 'translateX(100%)' : 'translateX(0)',
+        transition: 'transform 0.3s ease',
+        position: 'relative'
+      }}>
+        {/* Toggle button inside panel */}
         <button
           onClick={() => setRightPanelCollapsed(!rightPanelCollapsed)}
           style={{
             position: 'absolute',
             top: 20,
-            right: rightPanelCollapsed ? 20 : 300,
+            left: -20,
             width: 40,
             height: 40,
             background: '#ffffff',
@@ -250,9 +256,8 @@ export default function StudioPage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            transition: 'all 0.3s ease',
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-            zIndex: 100
+            zIndex: 101
           }}
           title={rightPanelCollapsed ? 'Show panels' : 'Hide panels'}
         >
@@ -264,12 +269,7 @@ export default function StudioPage() {
             )}
           </svg>
         </button>
-      </section>
 
-      <aside className="right-panel" style={{
-        transform: rightPanelCollapsed ? 'translateX(100%)' : 'translateX(0)',
-        transition: 'transform 0.3s ease'
-      }}>
         <ColorPanel />
         <div style={{ height: 20 }} />
         <LayersPanel />

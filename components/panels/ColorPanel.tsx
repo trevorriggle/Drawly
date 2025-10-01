@@ -3,7 +3,7 @@ import { useDrawly } from '@/context/DrawlyProvider';
 import Icon from '@/components/Icon';
 
 export default function ColorPanel() {
-  const { primaryColor, setPrimaryColor, brushSize, setBrushSize } = useDrawly();
+  const { primaryColor, setPrimaryColor, brushSize, setBrushSize, activeToolId, brushHardness, setBrushHardness } = useDrawly();
   return (
     <div className="panel">
       <h3 className="panel-title">
@@ -46,6 +46,30 @@ export default function ColorPanel() {
           }}
         />
       </div>
+
+      {activeToolId === 'brush' && (
+        <div style={{ marginTop: 16 }}>
+          <label style={{ display: 'block', fontSize: 14, color: '#374151', marginBottom: 8 }}>
+            Hardness: <span className="kbd">{Math.round(brushHardness * 100)}%</span>
+          </label>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={brushHardness}
+            onChange={(e)=>setBrushHardness(parseFloat(e.target.value))}
+            style={{
+              width: '100%',
+              height: 6,
+              borderRadius: 3,
+              background: '#e5e7eb',
+              outline: 'none',
+              cursor: 'pointer'
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

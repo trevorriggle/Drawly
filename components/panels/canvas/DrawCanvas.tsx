@@ -14,7 +14,7 @@ import { useDrawly } from '@/context/DrawlyProvider';
  */
 export default function DrawCanvas() {
   const drawlyContext = useDrawly();
-  const { activeToolId, primaryColor, brushSize, setActiveToolId, layers, activeLayerId, uploadedImageForLayer, updateLayerImagePosition, saveHistory, undo, redo, canvasHistory, historyIndex, mergeLayerDown } = drawlyContext;
+  const { activeToolId, primaryColor, brushSize, brushHardness, setActiveToolId, layers, activeLayerId, uploadedImageForLayer, updateLayerImagePosition, saveHistory, undo, redo, canvasHistory, historyIndex, mergeLayerDown } = drawlyContext;
   const mergeRequestRef = useRef<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -549,7 +549,20 @@ export default function DrawCanvas() {
       ctx.imageSmoothingQuality = 'high';
     } else if (activeToolId === 'brush') {
       ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = primaryColor;
+
+      // Create soft brush with hardness control
+      if (brushHardness < 1) {
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, brushSize / 2);
+        const hardnessStop = Math.max(0, brushHardness);
+        gradient.addColorStop(0, primaryColor);
+        gradient.addColorStop(hardnessStop, primaryColor);
+        gradient.addColorStop(1, primaryColor.replace(/[\d.]+\)$/, '0)').replace('rgb', 'rgba'));
+        ctx.strokeStyle = gradient;
+        ctx.fillStyle = gradient;
+      } else {
+        ctx.strokeStyle = primaryColor;
+      }
+
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.imageSmoothingEnabled = true;

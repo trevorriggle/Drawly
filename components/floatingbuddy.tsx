@@ -46,15 +46,24 @@ export default function FloatingBuddy({ feedback, onCloseFeedback }: FloatingBud
     }
   }, [feedback]);
 
-  // restore saved position (or set initial)
+  // restore saved position (or set initial) - delay to ensure window is ready
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setPos(JSON.parse(saved));
-      else setPos(getInitialPosition());
-    } catch {
-      setPos(getInitialPosition());
-    }
+    const initPosition = () => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          setPos(JSON.parse(saved));
+        } else {
+          setPos(getInitialPosition());
+        }
+      } catch {
+        setPos(getInitialPosition());
+      }
+    };
+
+    // Wait a tick for window dimensions to be stable
+    const timeout = setTimeout(initPosition, 100);
+    return () => clearTimeout(timeout);
   }, []);
 
   // persist position
