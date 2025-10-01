@@ -659,6 +659,7 @@ export default function DrawCanvas() {
       // Sample a circular area under the brush
       const radius = Math.ceil(brushSize / 2);
       const sampleSize = radius * 2;
+      const canvas = getActiveLayerCanvas();
       try {
         smudgeBuffer.current = ctx.getImageData(
           Math.max(0, x - radius),
