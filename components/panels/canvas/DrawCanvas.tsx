@@ -16,6 +16,7 @@ export default function DrawCanvas() {
   const drawlyContext = useDrawly();
   const { activeToolId, primaryColor, brushSize, brushHardness, setActiveToolId, layers, activeLayerId, uploadedImageForLayer, updateLayerImagePosition, saveHistory, undo, redo, canvasHistory, historyIndex, mergeLayerDown } = drawlyContext;
   const mergeRequestRef = useRef<string | null>(null);
+  const brushStampCache = useRef<Map<string, HTMLCanvasElement>>(new Map());
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const layerCanvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
@@ -260,6 +261,54 @@ export default function DrawCanvas() {
       g: parseInt(result[2], 16),
       b: parseInt(result[3], 16)
     } : null;
+  }
+
+  // Create a cached brush stamp (like Photoshop's brush engine)
+  function getBrushStamp(size: number, hardness: number, color: string): HTMLCanvasElement {
+    const key = `${size}-${hardness}-${color}`;
+
+    if (brushStampCache.current.has(key)) {
+      return brushStampCache.current.get(key)!;
+    }
+
+    // Create offscreen canvas for brush stamp
+    const stampCanvas = document.createElement('canvas');
+    const stampSize = Math.ceil(size * 2);
+    stampCanvas.width = stampSize;
+    stampCanvas.height = stampSize;
+    const stampCtx = stampCanvas.getContext('2d', { willReadFrequently: false })!;
+
+    const centerX = stampSize / 2;
+    const centerY = stampSize / 2;
+    const radius = size / 2;
+
+    // Create radial gradient brush
+    const gradient = stampCtx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+
+    // Parse color to RGB
+    const rgb = hexToRgb(color);
+    if (!rgb) return stampCanvas;
+
+    // Hardness controls where the falloff begins
+    const innerRadius = hardness; // 0.0 to 1.0
+
+    gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`);
+    gradient.addColorStop(innerRadius, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`);
+    gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+
+    stampCtx.fillStyle = gradient;
+    stampCtx.fillRect(0, 0, stampSize, stampSize);
+
+    // Cache it
+    brushStampCache.current.set(key, stampCanvas);
+
+    // Clear cache if too large
+    if (brushStampCache.current.size > 50) {
+      const firstKey = brushStampCache.current.keys().next().value;
+      brushStampCache.current.delete(firstKey);
+    }
+
+    return stampCanvas;
   }
 
   // Simple layer system - just add canvases as needed
@@ -563,15 +612,17 @@ export default function DrawCanvas() {
       ctx.imageSmoothingQuality = 'high';
     } else if (activeToolId === 'brush') {
       ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = primaryColor;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
 
-      // For soft brush, we'll draw circles instead of stroke
+      // Brush uses stamp-based rendering - no traditional stroke needed
       if (brushHardness < 1) {
-        ctx.globalAlpha = 0.1; // Lower alpha for softer buildup
+        // Soft brush - will use stamp compositing
+      } else {
+        // Hard brush - fallback to normal stroke
+        ctx.strokeStyle = primaryColor;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
       }
     } else if (activeToolId === 'smudge') {
       // Smudge tool: sample colors and blend them
@@ -765,37 +816,29 @@ export default function DrawCanvas() {
       if (!rafId.current) {
         rafId.current = requestAnimationFrame(() => {
           if (pendingDraw.current && last.current) {
-            // Special rendering for soft brush
+            // Photoshop-style brush rendering
             if (activeToolId === 'brush' && brushHardness < 1) {
-              // Draw soft brush with gradient - optimized
+              // Get pre-rendered brush stamp
+              const stamp = getBrushStamp(brushSize, brushHardness, primaryColor);
+
+              // Interpolate between points for smooth strokes
               const dist = Math.hypot(pendingDraw.current.x - last.current.x, pendingDraw.current.y - last.current.y);
-              const steps = Math.max(1, Math.floor(dist / (brushSize / 4)));
+              const spacing = brushSize * 0.25; // 25% spacing like Photoshop
+              const steps = Math.max(1, Math.ceil(dist / spacing));
+
+              ctx.globalAlpha = 1;
+              ctx.globalCompositeOperation = 'source-over';
 
               for (let i = 0; i <= steps; i++) {
                 const t = i / steps;
                 const px = last.current.x + (pendingDraw.current.x - last.current.x) * t;
                 const py = last.current.y + (pendingDraw.current.y - last.current.y) * t;
 
-                const gradient = ctx.createRadialGradient(px, py, 0, px, py, brushSize / 2);
-                const hardnessStop = Math.max(0.1, brushHardness);
-                gradient.addColorStop(0, primaryColor);
-                gradient.addColorStop(hardnessStop, primaryColor);
-
-                // Parse color to add alpha
-                const color = primaryColor.startsWith('#')
-                  ? `rgba(${parseInt(primaryColor.slice(1,3),16)},${parseInt(primaryColor.slice(3,5),16)},${parseInt(primaryColor.slice(5,7),16)},0)`
-                  : primaryColor.replace('rgb', 'rgba').replace(')', ', 0)');
-                gradient.addColorStop(1, color);
-
-                ctx.fillStyle = gradient;
-                ctx.globalAlpha = 0.2;
-                ctx.beginPath();
-                ctx.arc(px, py, brushSize / 2, 0, Math.PI * 2);
-                ctx.fill();
+                // Draw stamp centered at point
+                ctx.drawImage(stamp, px - stamp.width / 2, py - stamp.height / 2);
               }
-              ctx.globalAlpha = 1;
             } else {
-              // Hard edge brush/pencil
+              // Hard edge brush/pencil - use normal stroke
               ctx.lineTo(pendingDraw.current.x, pendingDraw.current.y);
               ctx.stroke();
             }

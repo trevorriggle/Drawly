@@ -4,8 +4,7 @@ import { useDrawly } from '@/context/DrawlyProvider';
 import Icon from '@/components/Icon';
 
 export default function LayersPanel() {
-  const { layers, activeLayerId, setActiveLayer, addLayer, toggleLayer, setLayerOpacity, mergeLayerDown } = useDrawly();
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string } | null>(null);
+  const { layers, activeLayerId, setActiveLayer, addLayer, toggleLayer, setLayerOpacity, mergeLayerDown, deleteLayer, moveLayer } = useDrawly();
   return (
     <div className="panel">
       <h3 className="panel-title">
@@ -16,12 +15,6 @@ export default function LayersPanel() {
           <div
             key={l.id}
             onClick={() => setActiveLayer(l.id)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              console.log('Right click on layer:', l.id, 'at', e.clientX, e.clientY);
-              setContextMenu({ x: e.clientX, y: e.clientY, layerId: l.id });
-            }}
             style={{
               display:'flex', flexDirection: 'column', gap:8, padding:10,
               border: l.id === activeLayerId ? '2px solid #3b82f6' : '1px solid #e5e7eb',
@@ -69,6 +62,92 @@ export default function LayersPanel() {
               />
               <span style={{ fontSize: 11, color: '#6b7280', minWidth: 35, textAlign: 'right' }}>{Math.round(l.opacity * 100)}%</span>
             </div>
+
+            {/* Layer controls */}
+            <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  mergeLayerDown(l.id);
+                }}
+                disabled={layers.findIndex(layer => layer.id === l.id) === layers.length - 1}
+                style={{
+                  flex: 1,
+                  padding: '4px 8px',
+                  fontSize: 11,
+                  background: layers.findIndex(layer => layer.id === l.id) === layers.length - 1 ? '#f3f4f6' : '#ffffff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 4,
+                  cursor: layers.findIndex(layer => layer.id === l.id) === layers.length - 1 ? 'not-allowed' : 'pointer',
+                  color: layers.findIndex(layer => layer.id === l.id) === layers.length - 1 ? '#9ca3af' : '#374151'
+                }}
+              >
+                Merge ↓
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteLayer(l.id);
+                }}
+                disabled={layers.length === 1}
+                style={{
+                  flex: 1,
+                  padding: '4px 8px',
+                  fontSize: 11,
+                  background: layers.length === 1 ? '#f3f4f6' : '#ffffff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 4,
+                  cursor: layers.length === 1 ? 'not-allowed' : 'pointer',
+                  color: layers.length === 1 ? '#9ca3af' : '#ef4444'
+                }}
+              >
+                Delete
+              </button>
+            </div>
+
+            {/* Move layer buttons */}
+            <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const idx = layers.findIndex(layer => layer.id === l.id);
+                  if (idx > 0) moveLayer(l.id, 'up');
+                }}
+                disabled={layers.findIndex(layer => layer.id === l.id) === 0}
+                style={{
+                  flex: 1,
+                  padding: '4px 8px',
+                  fontSize: 11,
+                  background: '#ffffff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 4,
+                  cursor: layers.findIndex(layer => layer.id === l.id) === 0 ? 'not-allowed' : 'pointer',
+                  color: layers.findIndex(layer => layer.id === l.id) === 0 ? '#9ca3af' : '#374151'
+                }}
+              >
+                Move ↑
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const idx = layers.findIndex(layer => layer.id === l.id);
+                  if (idx < layers.length - 1) moveLayer(l.id, 'down');
+                }}
+                disabled={layers.findIndex(layer => layer.id === l.id) === layers.length - 1}
+                style={{
+                  flex: 1,
+                  padding: '4px 8px',
+                  fontSize: 11,
+                  background: '#ffffff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 4,
+                  cursor: layers.findIndex(layer => layer.id === l.id) === layers.length - 1 ? 'not-allowed' : 'pointer',
+                  color: layers.findIndex(layer => layer.id === l.id) === layers.length - 1 ? '#9ca3af' : '#374151'
+                }}
+              >
+                Move ↓
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -89,73 +168,6 @@ export default function LayersPanel() {
         + Add Layer
       </button>
 
-      {/* Context Menu */}
-      {contextMenu && (() => {
-        console.log('Rendering context menu at', contextMenu);
-        return (
-        <>
-          <div
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 999
-            }}
-            onClick={() => setContextMenu(null)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setContextMenu(null);
-            }}
-          />
-          <div
-            style={{
-              position: 'fixed',
-              top: contextMenu.y,
-              left: contextMenu.x,
-              background: '#ffffff',
-              border: '1px solid #e5e7eb',
-              borderRadius: 8,
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-              padding: 4,
-              zIndex: 1000,
-              minWidth: 160
-            }}
-          >
-            <button
-              onClick={() => {
-                mergeLayerDown(contextMenu.layerId);
-                setContextMenu(null);
-              }}
-              disabled={layers.findIndex(l => l.id === contextMenu.layerId) === layers.length - 1}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                background: 'transparent',
-                border: 'none',
-                textAlign: 'left',
-                fontSize: 14,
-                cursor: layers.findIndex(l => l.id === contextMenu.layerId) === layers.length - 1 ? 'not-allowed' : 'pointer',
-                borderRadius: 6,
-                color: layers.findIndex(l => l.id === contextMenu.layerId) === layers.length - 1 ? '#9ca3af' : '#374151',
-                transition: 'background 0.15s ease'
-              }}
-              onMouseEnter={(e) => {
-                if (layers.findIndex(l => l.id === contextMenu.layerId) !== layers.length - 1) {
-                  e.currentTarget.style.background = '#f3f4f6';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-              }}
-            >
-              Merge Down
-            </button>
-          </div>
-        </>
-      );
-      })()}
     </div>
   );
 }

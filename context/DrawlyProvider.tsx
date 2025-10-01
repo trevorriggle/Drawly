@@ -43,7 +43,9 @@ type Action =
   | { type: 'SAVE_HISTORY'; canvasStates: ImageData[] }
   | { type: 'UNDO' }
   | { type: 'REDO' }
-  | { type: 'MERGE_LAYER_DOWN'; layerId: string };
+  | { type: 'MERGE_LAYER_DOWN'; layerId: string }
+  | { type: 'DELETE_LAYER'; layerId: string }
+  | { type: 'MOVE_LAYER'; layerId: string; direction: 'up' | 'down' };
 
 const initial: State = {
   activeToolId: 'pencil',
@@ -128,6 +130,31 @@ function reducer(state: State, action: Action): State {
         activeLayerId: state.activeLayerId === action.layerId ? newLayers[layerIndex]?.id || newLayers[0]?.id : state.activeLayerId
       };
     }
+    case 'DELETE_LAYER': {
+      if (state.layers.length === 1) return state; // Can't delete last layer
+      const newLayers = state.layers.filter(l => l.id !== action.layerId);
+      return {
+        ...state,
+        layers: newLayers,
+        // If deleted layer was active, set first layer as active
+        activeLayerId: state.activeLayerId === action.layerId ? newLayers[0]?.id : state.activeLayerId
+      };
+    }
+    case 'MOVE_LAYER': {
+      const layerIndex = state.layers.findIndex(l => l.id === action.layerId);
+      if (layerIndex === -1) return state;
+
+      const newLayers = [...state.layers];
+      if (action.direction === 'up' && layerIndex > 0) {
+        // Swap with layer above
+        [newLayers[layerIndex - 1], newLayers[layerIndex]] = [newLayers[layerIndex], newLayers[layerIndex - 1]];
+      } else if (action.direction === 'down' && layerIndex < newLayers.length - 1) {
+        // Swap with layer below
+        [newLayers[layerIndex], newLayers[layerIndex + 1]] = [newLayers[layerIndex + 1], newLayers[layerIndex]];
+      }
+
+      return { ...state, layers: newLayers };
+    }
     default: return state;
   }
 }
@@ -156,6 +183,8 @@ const Ctx = createContext<(State & {
   getRestoreCanvas: () => ((states: ImageData[]) => void) | null;
   mergeLayerDown: (layerId: string) => void;
   registerMergeLayerCanvas: (fn: (layerId: string) => void) => void;
+  deleteLayer: (layerId: string) => void;
+  moveLayer: (layerId: string, direction: 'up' | 'down') => void;
 }) | null>(null);
 
 export function DrawlyProvider({ children }: { children: React.ReactNode }) {
@@ -201,7 +230,9 @@ export function DrawlyProvider({ children }: { children: React.ReactNode }) {
     },
     registerMergeLayerCanvas: (fn: (layerId: string) => void) => {
       mergeLayerCanvasRef.current = fn;
-    }
+    },
+    deleteLayer: (layerId: string) => dispatch({ type: 'DELETE_LAYER', layerId }),
+    moveLayer: (layerId: string, direction: 'up' | 'down') => dispatch({ type: 'MOVE_LAYER', layerId, direction })
   }), [state]);
 
   return (
