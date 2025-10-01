@@ -280,61 +280,41 @@ export default function DrawCanvas() {
     // Don't fill if already the same color
     if (startR === fillColorRgb.r && startG === fillColorRgb.g && startB === fillColorRgb.b && startA === 255) return;
 
-    // Use typed array for visited tracking (much faster than Set)
+    // Stack-based flood fill with 4-directional filling
+    const stack: [number, number][] = [[startX, startY]];
     const visited = new Uint8Array(width * height);
-    const stack: number[] = [startY]; // Just store Y values for scanline
-    const MAX_PIXELS = 2000000; // Increased limit
+    const MAX_PIXELS = 2000000;
     let pixelsFilled = 0;
 
-    // Helper to check if pixel matches start color
-    const matchesStart = (idx: number) => {
-      return data[idx] === startR && data[idx + 1] === startG &&
-             data[idx + 2] === startB && data[idx + 3] === startA;
-    };
-
-    // Scanline fill algorithm
     while (stack.length > 0 && pixelsFilled < MAX_PIXELS) {
-      const y = stack.pop()!;
-      if (y < 0 || y >= height) continue;
+      const [px, py] = stack.pop()!;
 
-      // Find leftmost pixel in this row
-      let left = startX;
-      let rowIndex = y * width;
-      while (left > 0 && matchesStart((rowIndex + left - 1) * 4)) {
-        left--;
+      if (px < 0 || px >= width || py < 0 || py >= height) continue;
+
+      const pixelIndex = py * width + px;
+      if (visited[pixelIndex]) continue;
+
+      const idx = pixelIndex * 4;
+
+      // Check if pixel matches start color
+      if (data[idx] !== startR || data[idx + 1] !== startG ||
+          data[idx + 2] !== startB || data[idx + 3] !== startA) {
+        continue;
       }
 
-      // Find rightmost pixel in this row
-      let right = startX;
-      while (right < width - 1 && matchesStart((rowIndex + right + 1) * 4)) {
-        right++;
-      }
+      // Fill this pixel
+      visited[pixelIndex] = 1;
+      data[idx] = fillColorRgb.r;
+      data[idx + 1] = fillColorRgb.g;
+      data[idx + 2] = fillColorRgb.b;
+      data[idx + 3] = 255;
+      pixelsFilled++;
 
-      // Fill this scanline
-      for (let px = left; px <= right; px++) {
-        const visitIdx = rowIndex + px;
-        if (visited[visitIdx]) continue;
-        visited[visitIdx] = 1;
-
-        const idx = visitIdx * 4;
-        if (!matchesStart(idx)) continue;
-
-        data[idx] = fillColorRgb.r;
-        data[idx + 1] = fillColorRgb.g;
-        data[idx + 2] = fillColorRgb.b;
-        data[idx + 3] = 255;
-        pixelsFilled++;
-      }
-
-      // Check scanlines above and below
-      for (let px = left; px <= right; px++) {
-        if (y > 0 && matchesStart(((y - 1) * width + px) * 4) && !visited[(y - 1) * width + px]) {
-          stack.push(y - 1);
-        }
-        if (y < height - 1 && matchesStart(((y + 1) * width + px) * 4) && !visited[(y + 1) * width + px]) {
-          stack.push(y + 1);
-        }
-      }
+      // Add neighboring pixels to stack
+      stack.push([px + 1, py]);
+      stack.push([px - 1, py]);
+      stack.push([px, py + 1]);
+      stack.push([px, py - 1]);
     }
 
     ctx.putImageData(imageData, 0, 0);

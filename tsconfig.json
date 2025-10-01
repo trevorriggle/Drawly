@@ -17,6 +17,9 @@
     "incremental": true,
     "baseUrl": ".",
     "paths": {
+      "@drawly/core": [
+        "packages/core/src/index.ts"
+      ],
       "@/components/*": [
         "components/*"
       ],

@@ -2,15 +2,20 @@
   "name": "drawly",
   "private": true,
   "version": "0.0.1",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run build:core && next build",
+    "build:core": "cd packages/core && npm run build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@drawly/core": "file:./packages/core",
     "@supabase/supabase-js": "^2.45.0",
     "next": "14.2.5",
     "openai": "^5.23.2",
