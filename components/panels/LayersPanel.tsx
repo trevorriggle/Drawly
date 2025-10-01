@@ -93,6 +93,25 @@ export default function LayersPanel() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* Layer thumbnail */}
+                <div style={{
+                  width: 48,
+                  height: 48,
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 4,
+                  background: 'url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAGElEQVQYlWNgYGCQwoKxgqGgcJA5h3yFAAs8BRWVSwooAAAAAElFTkSuQmCC) repeat',
+                  backgroundSize: '10px 10px',
+                  overflow: 'hidden',
+                  flexShrink: 0
+                }}>
+                  {l.thumbnail && (
+                    <img
+                      src={l.thumbnail}
+                      alt={l.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  )}
+                </div>
                 <span style={{
                   flex:1,
                   fontSize: 14,

@@ -49,8 +49,17 @@ export default function DrawCanvas() {
         if (ctx) {
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           states.push(imageData);
-          // Also save to layer state for proper synchronization
-          updateLayerCanvasData(layer.id, imageData);
+
+          // Generate thumbnail (64x64 preview)
+          const thumbCanvas = document.createElement('canvas');
+          thumbCanvas.width = 64;
+          thumbCanvas.height = 64;
+          const thumbCtx = thumbCanvas.getContext('2d')!;
+          thumbCtx.drawImage(canvas, 0, 0, 64, 64);
+          const thumbnail = thumbCanvas.toDataURL('image/png');
+
+          // Save to layer state for proper synchronization
+          updateLayerCanvasData(layer.id, imageData, thumbnail);
         }
       }
     });
@@ -66,6 +75,8 @@ export default function DrawCanvas() {
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.putImageData(imageData, 0, 0);
+            // Also update layer state to keep it in sync
+            updateLayerCanvasData(layer.id, imageData);
           }
         }
       }
@@ -270,7 +281,10 @@ export default function DrawCanvas() {
 
   // Create a cached brush stamp (like Photoshop's brush engine)
   function getBrushStamp(size: number, hardness: number, color: string): HTMLCanvasElement {
-    const key = `${size}-${hardness}-${color}`;
+    // Round values for better cache hits
+    const roundedSize = Math.round(size);
+    const roundedHardness = Math.round(hardness * 10) / 10;
+    const key = `${roundedSize}-${roundedHardness}-${color}`;
 
     if (brushStampCache.current.has(key)) {
       return brushStampCache.current.get(key)!;
@@ -278,14 +292,15 @@ export default function DrawCanvas() {
 
     // Create offscreen canvas for brush stamp
     const stampCanvas = document.createElement('canvas');
-    const stampSize = Math.ceil(size * 2);
+    // Limit stamp size for performance (max 128x128)
+    const stampSize = Math.min(Math.ceil(roundedSize * 2), 128);
     stampCanvas.width = stampSize;
     stampCanvas.height = stampSize;
     const stampCtx = stampCanvas.getContext('2d', { willReadFrequently: false })!;
 
     const centerX = stampSize / 2;
     const centerY = stampSize / 2;
-    const radius = size / 2;
+    const radius = roundedSize / 2;
 
     // Parse color to RGB
     const rgb = hexToRgb(color);
@@ -295,24 +310,24 @@ export default function DrawCanvas() {
     const imageData = stampCtx.createImageData(stampSize, stampSize);
     const data = imageData.data;
 
+    // Pre-calculate exponent for performance
+    const exponent = roundedHardness >= 0.99 ? 0 : 0.5 + (1 - roundedHardness) * 2.5;
+    const radiusSq = radius * radius; // Use squared distance to avoid sqrt
+
     for (let y = 0; y < stampSize; y++) {
       for (let x = 0; x < stampSize; x++) {
         const dx = x - centerX;
         const dy = y - centerY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const normalizedDist = distance / radius;
+        const distanceSq = dx * dx + dy * dy;
 
         let alpha = 0;
-        if (normalizedDist <= 1) {
-          // Hardness affects the falloff curve
-          // Higher hardness = sharper edge, lower = softer
-          if (hardness >= 0.99) {
+        if (distanceSq <= radiusSq) {
+          if (roundedHardness >= 0.99) {
             // Fully hard - just a circle
-            alpha = normalizedDist <= 1 ? 1 : 0;
+            alpha = 1;
           } else {
             // Soft brush with proper falloff
-            // Map hardness to a curve exponent (higher = sharper falloff)
-            const exponent = 0.5 + (1 - hardness) * 2.5; // Range: 0.5 to 3.0
+            const normalizedDist = Math.sqrt(distanceSq) / radius;
             alpha = Math.pow(1 - normalizedDist, exponent);
           }
         }
@@ -396,6 +411,7 @@ export default function DrawCanvas() {
         ctx.scale(dpr.current, dpr.current);
 
         // Restore canvas data if it exists in layer state
+        // (putImageData ignores transforms and writes directly to pixel buffer)
         if (layer.canvasData) {
           ctx.putImageData(layer.canvasData, 0, 0);
           console.log(`Restored canvas data for layer ${layer.id}`);
@@ -940,21 +956,26 @@ export default function DrawCanvas() {
               );
 
             } else if (activeToolId === 'brush' && brushHardness < 1) {
-              // Photoshop-style brush rendering
+              // Optimized soft brush rendering
               const stamp = getBrushStamp(brushSize, brushHardness, primaryColor);
 
               // Interpolate between points for smooth strokes
               const dist = Math.hypot(pendingDraw.current.x - last.current.x, pendingDraw.current.y - last.current.y);
-              const spacing = brushSize * 0.25; // 25% spacing like Photoshop
+              // Adaptive spacing - larger brushes need less dense spacing
+              const spacing = Math.max(brushSize * 0.15, 2); // Reduced density for performance
               const steps = Math.max(1, Math.ceil(dist / spacing));
+
+              // Cap steps to prevent performance issues with fast strokes
+              const maxSteps = 20;
+              const actualSteps = Math.min(steps, maxSteps);
 
               ctx.globalAlpha = 1;
               ctx.globalCompositeOperation = 'source-over';
 
-              for (let i = 0; i <= steps; i++) {
-                const t = i / steps;
-                const px = last.current.x + (pendingDraw.current.x - last.current.x) * t;
-                const py = last.current.y + (pendingDraw.current.y - last.current.y) * t;
+              for (let i = 0; i <= actualSteps; i++) {
+                const t = (i / actualSteps) * (steps / actualSteps); // Adjust for capped steps
+                const px = last.current.x + (pendingDraw.current.x - last.current.x) * Math.min(t, 1);
+                const py = last.current.y + (pendingDraw.current.y - last.current.y) * Math.min(t, 1);
 
                 // Draw stamp centered at point
                 ctx.drawImage(stamp, px - stamp.width / 2, py - stamp.height / 2);

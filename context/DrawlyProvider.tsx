@@ -18,7 +18,7 @@ type State = {
   primaryColor: string;
   brushSize: number;
   brushHardness: number;
-  layers: { id: string; name: string; visible: boolean; opacity: number; canvasData: ImageData | null; imageData?: HTMLImageElement; imagePosition?: { x: number; y: number; width: number; height: number } }[];
+  layers: { id: string; name: string; visible: boolean; opacity: number; canvasData: ImageData | null; thumbnail?: string; imageData?: HTMLImageElement; imagePosition?: { x: number; y: number; width: number; height: number } }[];
   activeLayerId: string;
   questionnaireAnswers: QuestionnaireAnswers | null;
   feedback: string | null;
@@ -41,7 +41,7 @@ type Action =
   | { type: 'SET_FEEDBACK'; feedback: string | null }
   | { type: 'SET_UPLOADED_IMAGE'; layerId: string; image: HTMLImageElement }
   | { type: 'UPDATE_LAYER_IMAGE_POS'; layerId: string; position: { x: number; y: number; width: number; height: number } }
-  | { type: 'UPDATE_LAYER_CANVAS_DATA'; layerId: string; canvasData: ImageData }
+  | { type: 'UPDATE_LAYER_CANVAS_DATA'; layerId: string; canvasData: ImageData; thumbnail?: string }
   | { type: 'SAVE_HISTORY'; canvasStates: ImageData[] }
   | { type: 'UNDO' }
   | { type: 'REDO' }
@@ -101,7 +101,7 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         layers: state.layers.map(l =>
-          l.id === action.layerId ? { ...l, canvasData: action.canvasData } : l
+          l.id === action.layerId ? { ...l, canvasData: action.canvasData, thumbnail: action.thumbnail } : l
         )
       };
     }
@@ -188,7 +188,7 @@ const Ctx = createContext<(State & {
   setFeedback: (feedback: string | null) => void;
   setUploadedImage: (layerId: string, image: HTMLImageElement) => void;
   updateLayerImagePosition: (layerId: string, position: { x: number; y: number; width: number; height: number }) => void;
-  updateLayerCanvasData: (layerId: string, canvasData: ImageData) => void;
+  updateLayerCanvasData: (layerId: string, canvasData: ImageData, thumbnail?: string) => void;
   registerExportCanvas: (fn: () => string | null) => void;
   getExportCanvas: () => (() => string | null) | null;
   saveHistory: (canvasStates: ImageData[]) => void;
@@ -224,7 +224,7 @@ export function DrawlyProvider({ children }: { children: React.ReactNode }) {
     setFeedback: (feedback: string | null) => dispatch({ type: 'SET_FEEDBACK', feedback }),
     setUploadedImage: (layerId: string, image: HTMLImageElement) => dispatch({ type: 'SET_UPLOADED_IMAGE', layerId, image }),
     updateLayerImagePosition: (layerId: string, position: { x: number; y: number; width: number; height: number }) => dispatch({ type: 'UPDATE_LAYER_IMAGE_POS', layerId, position }),
-    updateLayerCanvasData: (layerId: string, canvasData: ImageData) => dispatch({ type: 'UPDATE_LAYER_CANVAS_DATA', layerId, canvasData }),
+    updateLayerCanvasData: (layerId: string, canvasData: ImageData, thumbnail?: string) => dispatch({ type: 'UPDATE_LAYER_CANVAS_DATA', layerId, canvasData, thumbnail }),
     registerExportCanvas: (fn: () => string | null) => {
       exportCanvasRef.current = fn;
     },
