@@ -5,7 +5,7 @@ import React, { createContext, useContext, ReactNode } from 'react';
 /** Icon tokens (stable keys used by ToolButton & elsewhere) */
 export type IconToken =
   | "pencil" | "brush" | "eraser" | "fill" | "gradient"
-  | "shapes" | "line" | "smudge" | "clone"
+  | "rectangle" | "circle" | "triangle" | "line" | "smudge" | "clone"
   | "select" | "lasso" | "wand" | "transform" | "crop" | "zoom" | "hand" | "cursor"
   | "text" | "layers" | "color" | "undo" | "redo";
 
@@ -18,7 +18,9 @@ const Def = {
   eraser: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><path d="M16.24 3.56 21 8.32a2 2 0 0 1 0 2.83l-7.2 7.2a2 2 0 0 1-2.83 0L3.2 11.58a2 2 0 0 1 0-2.83l4.76-4.76a2 2 0 0 1 2.83 0z"/></svg>),
   fill: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><path d="m16 12-8-8-4 4 8 8 4-4z"/><path d="M19 13a3 3 0 1 0 6 0c0-1.66-3-6-3-6s-3 4.34-3 6z"/></svg>),
   gradient: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><defs><linearGradient id="g"><stop offset="0%"/><stop offset="100%"/></linearGradient></defs><rect x="3" y="6" width="18" height="12" fill="url(#g)" stroke="currentColor"/></svg>),
-  shapes: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><rect x="3" y="3" width="8" height="8" rx="1"/><circle cx="16.5" cy="16.5" r="4.5"/></svg>),
+  rectangle: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><rect x="3" y="6" width="18" height="12" rx="1"/></svg>),
+  circle: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><circle cx="12" cy="12" r="8"/></svg>),
+  triangle: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><path d="M12 3 22 20 2 20 Z"/></svg>),
   line: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><path d="M4 20 20 4" stroke="currentColor" strokeWidth="2" fill="none"/></svg>),
   smudge: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><path d="M3 17c5-2 10-4 18-6-2 6-10 8-18 6z" /></svg>),
   clone: (p:any)=>(<svg viewBox="0 0 24 24" {...p}><rect x="7" y="7" width="10" height="10" rx="2"/><rect x="3" y="3" width="10" height="10" rx="2"/></svg>),

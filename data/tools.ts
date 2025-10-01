@@ -2,7 +2,7 @@ import type { IconToken } from '@/lib/icons-registry';
 
 export type ToolId =
   | 'pencil' | 'brush' | 'eraser' | 'fill' | 'gradient'
-  | 'shapes' | 'line' | 'smudge' | 'clone'
+  | 'rectangle' | 'circle' | 'triangle' | 'line' | 'smudge' | 'clone'
   | 'select' | 'lasso' | 'wand' | 'transform' | 'crop' | 'pan'
   | 'text';
 
@@ -21,7 +21,9 @@ export const DEFAULT_TOOLS: ToolDef[] = [
   { id: 'pan',       label: 'Pan',       icon: 'hand',     key: 'H', group: 'nav' },
   { id: 'fill',      label: 'Fill',      icon: 'fill',     key: 'G', group: 'edit' },
   { id: 'gradient',  label: 'Gradient',  icon: 'gradient', key: 'Shift+G', group: 'edit' },
-  { id: 'shapes',    label: 'Shapes',    icon: 'shapes',   key: 'U', group: 'draw' },
+  { id: 'rectangle', label: 'Rectangle', icon: 'rectangle', key: 'U', group: 'draw' },
+  { id: 'circle',    label: 'Circle',    icon: 'circle',    key: 'C', group: 'draw' },
+  { id: 'triangle',  label: 'Triangle',  icon: 'triangle',  key: 'Y', group: 'draw' },
   { id: 'line',      label: 'Line/Curve',icon: 'line',     key: 'L', group: 'draw' },
   { id: 'smudge',    label: 'Smudge',    icon: 'smudge',   group: 'edit' },
   { id: 'clone',     label: 'Clone',     icon: 'clone',    group: 'edit' },

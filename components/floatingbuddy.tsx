@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
 
 /**
  * Drawly Buddy
@@ -193,8 +194,34 @@ export default function FloatingBuddy({ feedback, onCloseFeedback }: FloatingBud
               −
             </button>
           </div>
-          <div style={{ fontSize: 14, opacity: 0.9, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-            {feedback || "hey! i'm your friendly pencil. drag me anywhere. draw something and click \"I'm done!\" to get feedback. ✏️"}
+          <div style={{
+            fontSize: 14,
+            opacity: 0.9,
+            lineHeight: 1.6
+          }}
+          className="markdown-content"
+          >
+            {feedback ? (
+              <ReactMarkdown
+                components={{
+                  h1: ({node, ...props}) => <h1 style={{ fontSize: '1.5em', fontWeight: 'bold', marginTop: '0.5em', marginBottom: '0.5em' }} {...props} />,
+                  h2: ({node, ...props}) => <h2 style={{ fontSize: '1.3em', fontWeight: 'bold', marginTop: '0.5em', marginBottom: '0.5em' }} {...props} />,
+                  h3: ({node, ...props}) => <h3 style={{ fontSize: '1.1em', fontWeight: 'bold', marginTop: '0.5em', marginBottom: '0.5em' }} {...props} />,
+                  p: ({node, ...props}) => <p style={{ marginBottom: '0.75em' }} {...props} />,
+                  ul: ({node, ...props}) => <ul style={{ marginLeft: '1.5em', marginBottom: '0.75em', listStyleType: 'disc' }} {...props} />,
+                  ol: ({node, ...props}) => <ol style={{ marginLeft: '1.5em', marginBottom: '0.75em', listStyleType: 'decimal' }} {...props} />,
+                  li: ({node, ...props}) => <li style={{ marginBottom: '0.25em' }} {...props} />,
+                  strong: ({node, ...props}) => <strong style={{ fontWeight: 'bold' }} {...props} />,
+                  em: ({node, ...props}) => <em style={{ fontStyle: 'italic' }} {...props} />,
+                  code: ({node, ...props}) => <code style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '2px 4px', borderRadius: 3, fontSize: '0.9em' }} {...props} />,
+                  pre: ({node, ...props}) => <pre style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '12px', borderRadius: 6, overflow: 'auto', marginBottom: '0.75em' }} {...props} />,
+                }}
+              >
+                {feedback}
+              </ReactMarkdown>
+            ) : (
+              "hey! i'm your friendly pencil. drag me anywhere. draw something and click \"I'm done!\" to get feedback. ✏️"
+            )}
           </div>
         </div>
       )}

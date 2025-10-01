@@ -412,6 +412,14 @@ export default function DrawCanvas() {
       return;
     }
 
+    // Handle fill tool (must be before other drawing tools)
+    if (activeToolId === 'fill') {
+      const { x, y } = toCanvasCoords(e.clientX, e.clientY);
+      const ctx = getActiveLayerCtx();
+      fillArea(ctx, x, y, primaryColor);
+      return;
+    }
+
     // Tools that truly don't draw
     const nonDrawingTools = ['lasso', 'wand', 'transform', 'crop', 'pan'] as const;
     if (nonDrawingTools.includes(activeToolId as any)) {
@@ -420,7 +428,7 @@ export default function DrawCanvas() {
     }
 
     // All other tools should draw
-    const drawingTools = ['pencil', 'brush', 'eraser', 'fill', 'gradient', 'shapes', 'line', 'smudge', 'clone'];
+    const drawingTools = ['pencil', 'brush', 'eraser', 'gradient', 'rectangle', 'circle', 'triangle', 'line', 'smudge', 'clone'];
     if (!drawingTools.includes(activeToolId)) {
       return;
     }
@@ -431,13 +439,6 @@ export default function DrawCanvas() {
 
     // Debug logging
     console.log(`Drawing with ${activeToolId} on layer ${activeLayerId}, color: ${primaryColor}, pos: ${x},${y}`);
-
-    // Handle special tools that don't use traditional drawing
-    if (activeToolId === 'fill') {
-      // Flood fill at click point
-      fillArea(ctx, x, y, primaryColor);
-      return;
-    }
 
     if (activeToolId === 'line') {
       // Start line drawing mode
@@ -450,7 +451,7 @@ export default function DrawCanvas() {
       return;
     }
 
-    if (activeToolId === 'shapes') {
+    if (activeToolId === 'rectangle' || activeToolId === 'circle' || activeToolId === 'triangle') {
       // Start shape drawing mode (similar to line tool)
       isDrawingLine.current = true; // Reuse line drawing logic for shapes
       lineStart.current = { x, y };
@@ -642,11 +643,23 @@ export default function DrawCanvas() {
         // Draw line preview
         ctx.moveTo(lineStart.current.x, lineStart.current.y);
         ctx.lineTo(x, y);
-      } else if (activeToolId === 'shapes') {
+      } else if (activeToolId === 'rectangle') {
         // Draw rectangle preview
         const width = x - lineStart.current.x;
         const height = y - lineStart.current.y;
         ctx.rect(lineStart.current.x, lineStart.current.y, width, height);
+      } else if (activeToolId === 'circle') {
+        // Draw circle preview
+        const radius = Math.sqrt(Math.pow(x - lineStart.current.x, 2) + Math.pow(y - lineStart.current.y, 2));
+        ctx.arc(lineStart.current.x, lineStart.current.y, radius, 0, 2 * Math.PI);
+      } else if (activeToolId === 'triangle') {
+        // Draw triangle preview
+        const width = x - lineStart.current.x;
+        const height = y - lineStart.current.y;
+        ctx.moveTo(lineStart.current.x, lineStart.current.y);
+        ctx.lineTo(lineStart.current.x + width, lineStart.current.y + height);
+        ctx.lineTo(lineStart.current.x - width, lineStart.current.y + height);
+        ctx.closePath();
       }
 
       ctx.stroke();
@@ -705,11 +718,23 @@ export default function DrawCanvas() {
         // Draw final line
         ctx.moveTo(lineStart.current.x, lineStart.current.y);
         ctx.lineTo(x, y);
-      } else if (activeToolId === 'shapes') {
+      } else if (activeToolId === 'rectangle') {
         // Draw final rectangle
         const width = x - lineStart.current.x;
         const height = y - lineStart.current.y;
         ctx.rect(lineStart.current.x, lineStart.current.y, width, height);
+      } else if (activeToolId === 'circle') {
+        // Draw final circle
+        const radius = Math.sqrt(Math.pow(x - lineStart.current.x, 2) + Math.pow(y - lineStart.current.y, 2));
+        ctx.arc(lineStart.current.x, lineStart.current.y, radius, 0, 2 * Math.PI);
+      } else if (activeToolId === 'triangle') {
+        // Draw final triangle
+        const width = x - lineStart.current.x;
+        const height = y - lineStart.current.y;
+        ctx.moveTo(lineStart.current.x, lineStart.current.y);
+        ctx.lineTo(lineStart.current.x + width, lineStart.current.y + height);
+        ctx.lineTo(lineStart.current.x - width, lineStart.current.y + height);
+        ctx.closePath();
       }
 
       ctx.stroke();
@@ -747,7 +772,9 @@ export default function DrawCanvas() {
           case 'KeyG': e.preventDefault(); setActiveToolId('fill'); break;
           case 'KeyT': e.preventDefault(); setActiveToolId('text'); break;
           case 'KeyL': e.preventDefault(); setActiveToolId('line'); break;
-          case 'KeyU': e.preventDefault(); setActiveToolId('shapes'); break;
+          case 'KeyU': e.preventDefault(); setActiveToolId('rectangle'); break;
+          case 'KeyC': e.preventDefault(); setActiveToolId('circle'); break;
+          case 'KeyY': e.preventDefault(); setActiveToolId('triangle'); break;
           case 'KeyQ': e.preventDefault(); setActiveToolId('lasso'); break;
           case 'KeyH': e.preventDefault(); setActiveToolId('pan'); break;
         }
@@ -875,7 +902,9 @@ export default function DrawCanvas() {
         {activeToolId === 'smudge' && <span style={{ marginLeft: 8, color: '#10b981' }}>SMUDGES</span>}
         {activeToolId === 'fill' && <span style={{ marginLeft: 8, color: '#10b981' }}>(G) FILLS</span>}
         {activeToolId === 'gradient' && <span style={{ marginLeft: 8, color: '#10b981' }}>GRADIENT</span>}
-        {activeToolId === 'shapes' && <span style={{ marginLeft: 8, color: '#10b981' }}>(U) RECTANGLES</span>}
+        {activeToolId === 'rectangle' && <span style={{ marginLeft: 8, color: '#10b981' }}>(U) RECTANGLES</span>}
+        {activeToolId === 'circle' && <span style={{ marginLeft: 8, color: '#10b981' }}>(C) CIRCLES</span>}
+        {activeToolId === 'triangle' && <span style={{ marginLeft: 8, color: '#10b981' }}>(Y) TRIANGLES</span>}
         {activeToolId === 'line' && <span style={{ marginLeft: 8, color: '#10b981' }}>(L) LINES</span>}
         {activeToolId === 'clone' && <span style={{ marginLeft: 8, color: '#10b981' }}>CLONES</span>}
         {activeToolId === 'text' && <span style={{ marginLeft: 8, color: '#10b981' }}>(T) CLICK TO TYPE</span>}
