@@ -857,6 +857,7 @@ export default function DrawCanvas() {
             if (activeToolId === 'smudge' && smudgeBuffer.current) {
               const radius = Math.ceil(brushSize / 2);
               const strength = 0.5; // Smudge strength (0-1)
+              const canvas = getActiveLayerCanvas();
 
               // Get current pixels at the target location
               let currentPixels;
