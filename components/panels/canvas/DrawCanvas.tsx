@@ -71,6 +71,13 @@ export default function DrawCanvas() {
     drawlyContext.registerRestoreCanvas(restoreCanvasState);
   }, [layers, drawlyContext]);
 
+  // Save initial canvas state on mount
+  useEffect(() => {
+    if (canvasHistory.length === 0 && layerCanvasRefs.current.size > 0) {
+      setTimeout(() => saveCanvasState(), 500);
+    }
+  }, [layerCanvasRefs.current.size]);
+
   // Listen to history changes and restore canvas
   useEffect(() => {
     if (historyIndex >= 0 && canvasHistory[historyIndex]) {
@@ -183,7 +190,7 @@ export default function DrawCanvas() {
     return () => resizeObserver.disconnect();
   }, []); // Empty dependency array - only run once
 
-  // Proper flood fill function
+  // Proper flood fill function with safety limit
   function fillArea(ctx: CanvasRenderingContext2D, x: number, y: number, fillColor: string) {
     const canvas = ctx.canvas;
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -209,8 +216,10 @@ export default function DrawCanvas() {
 
     const stack: [number, number][] = [[startX, startY]];
     const visited = new Set<string>();
+    const MAX_PIXELS = 500000; // Safety limit
+    let pixelsFilled = 0;
 
-    while (stack.length > 0) {
+    while (stack.length > 0 && pixelsFilled < MAX_PIXELS) {
       const [px, py] = stack.pop()!;
       const key = `${px},${py}`;
 
@@ -231,12 +240,17 @@ export default function DrawCanvas() {
       data[index + 1] = fillColorRgb.g;
       data[index + 2] = fillColorRgb.b;
       data[index + 3] = 255;
+      pixelsFilled++;
 
       // Add neighbors to stack
       stack.push([px + 1, py], [px - 1, py], [px, py + 1], [px, py - 1]);
     }
 
     ctx.putImageData(imageData, 0, 0);
+
+    if (pixelsFilled >= MAX_PIXELS) {
+      console.warn('Fill area reached maximum pixel limit');
+    }
   }
 
   function hexToRgb(hex: string): {r: number, g: number, b: number} | null {
@@ -753,25 +767,33 @@ export default function DrawCanvas() {
           if (pendingDraw.current && last.current) {
             // Special rendering for soft brush
             if (activeToolId === 'brush' && brushHardness < 1) {
-              // Draw soft brush with gradient
-              const steps = Math.ceil(Math.hypot(pendingDraw.current.x - last.current.x, pendingDraw.current.y - last.current.y) / 2);
+              // Draw soft brush with gradient - optimized
+              const dist = Math.hypot(pendingDraw.current.x - last.current.x, pendingDraw.current.y - last.current.y);
+              const steps = Math.max(1, Math.floor(dist / (brushSize / 4)));
+
               for (let i = 0; i <= steps; i++) {
                 const t = i / steps;
                 const px = last.current.x + (pendingDraw.current.x - last.current.x) * t;
                 const py = last.current.y + (pendingDraw.current.y - last.current.y) * t;
 
                 const gradient = ctx.createRadialGradient(px, py, 0, px, py, brushSize / 2);
+                const hardnessStop = Math.max(0.1, brushHardness);
                 gradient.addColorStop(0, primaryColor);
-                gradient.addColorStop(brushHardness, primaryColor);
-                gradient.addColorStop(1, primaryColor.replace('rgb', 'rgba').replace(')', ', 0)'));
+                gradient.addColorStop(hardnessStop, primaryColor);
+
+                // Parse color to add alpha
+                const color = primaryColor.startsWith('#')
+                  ? `rgba(${parseInt(primaryColor.slice(1,3),16)},${parseInt(primaryColor.slice(3,5),16)},${parseInt(primaryColor.slice(5,7),16)},0)`
+                  : primaryColor.replace('rgb', 'rgba').replace(')', ', 0)');
+                gradient.addColorStop(1, color);
 
                 ctx.fillStyle = gradient;
-                ctx.globalAlpha = 0.15;
+                ctx.globalAlpha = 0.2;
                 ctx.beginPath();
                 ctx.arc(px, py, brushSize / 2, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.globalAlpha = 1;
               }
+              ctx.globalAlpha = 1;
             } else {
               // Hard edge brush/pencil
               ctx.lineTo(pendingDraw.current.x, pendingDraw.current.y);
@@ -938,7 +960,6 @@ export default function DrawCanvas() {
         onPointerCancel={onPointerUp}
         onPointerLeave={() => setMousePos(null)}
         onWheel={onWheel}
-        onContextMenu={(e) => e.preventDefault()}
       />
       {/* Selection handles */}
       {selectedLayer && activeToolId === 'select' && (() => {
