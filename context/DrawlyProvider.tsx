@@ -18,13 +18,14 @@ type State = {
   primaryColor: string;
   brushSize: number;
   brushHardness: number;
-  layers: { id: string; name: string; visible: boolean; opacity: number; imageData?: HTMLImageElement; imagePosition?: { x: number; y: number; width: number; height: number } }[];
+  layers: { id: string; name: string; visible: boolean; opacity: number; canvasData: ImageData | null; imageData?: HTMLImageElement; imagePosition?: { x: number; y: number; width: number; height: number } }[];
   activeLayerId: string;
   questionnaireAnswers: QuestionnaireAnswers | null;
   feedback: string | null;
   uploadedImageForLayer: { layerId: string; image: HTMLImageElement } | null;
   canvasHistory: ImageData[][];
   historyIndex: number;
+  nextLayerId: number;
 };
 
 type Action =
@@ -40,6 +41,7 @@ type Action =
   | { type: 'SET_FEEDBACK'; feedback: string | null }
   | { type: 'SET_UPLOADED_IMAGE'; layerId: string; image: HTMLImageElement }
   | { type: 'UPDATE_LAYER_IMAGE_POS'; layerId: string; position: { x: number; y: number; width: number; height: number } }
+  | { type: 'UPDATE_LAYER_CANVAS_DATA'; layerId: string; canvasData: ImageData }
   | { type: 'SAVE_HISTORY'; canvasStates: ImageData[] }
   | { type: 'UNDO' }
   | { type: 'REDO' }
@@ -52,13 +54,14 @@ const initial: State = {
   primaryColor: '#1f2937',
   brushSize: 4,
   brushHardness: 1,
-  layers: [{ id: 'background', name: 'Background', visible: true, opacity: 1 }],
-  activeLayerId: 'background',
+  layers: [{ id: 'layer-0', name: 'Background', visible: true, opacity: 1, canvasData: null }],
+  activeLayerId: 'layer-0',
   questionnaireAnswers: null,
   feedback: null,
   uploadedImageForLayer: null,
   canvasHistory: [],
-  historyIndex: -1
+  historyIndex: -1,
+  nextLayerId: 1
 };
 
 function reducer(state: State, action: Action): State {
@@ -68,8 +71,13 @@ function reducer(state: State, action: Action): State {
     case 'SET_BRUSH': return { ...state, brushSize: action.size };
     case 'SET_BRUSH_HARDNESS': return { ...state, brushHardness: action.hardness };
     case 'ADD_LAYER': {
-      const id = `layer-${state.layers.length + 1}`;
-      return { ...state, layers: [...state.layers, { id, name: action.name ?? `Layer ${state.layers.length + 1}`, visible: true, opacity: 1 }], activeLayerId: id };
+      const id = `layer-${state.nextLayerId}`;
+      return {
+        ...state,
+        layers: [...state.layers, { id, name: action.name ?? `Layer ${state.nextLayerId}`, visible: true, opacity: 1, canvasData: null }],
+        activeLayerId: id,
+        nextLayerId: state.nextLayerId + 1
+      };
     }
     case 'TOGGLE_LAYER_VIS': {
       return { ...state, layers: state.layers.map(l => l.id === action.id ? { ...l, visible: !l.visible } : l) };
@@ -86,6 +94,14 @@ function reducer(state: State, action: Action): State {
         ...state,
         layers: state.layers.map(l =>
           l.id === action.layerId ? { ...l, imagePosition: action.position } : l
+        )
+      };
+    }
+    case 'UPDATE_LAYER_CANVAS_DATA': {
+      return {
+        ...state,
+        layers: state.layers.map(l =>
+          l.id === action.layerId ? { ...l, canvasData: action.canvasData } : l
         )
       };
     }
@@ -172,6 +188,7 @@ const Ctx = createContext<(State & {
   setFeedback: (feedback: string | null) => void;
   setUploadedImage: (layerId: string, image: HTMLImageElement) => void;
   updateLayerImagePosition: (layerId: string, position: { x: number; y: number; width: number; height: number }) => void;
+  updateLayerCanvasData: (layerId: string, canvasData: ImageData) => void;
   registerExportCanvas: (fn: () => string | null) => void;
   getExportCanvas: () => (() => string | null) | null;
   saveHistory: (canvasStates: ImageData[]) => void;
@@ -207,6 +224,7 @@ export function DrawlyProvider({ children }: { children: React.ReactNode }) {
     setFeedback: (feedback: string | null) => dispatch({ type: 'SET_FEEDBACK', feedback }),
     setUploadedImage: (layerId: string, image: HTMLImageElement) => dispatch({ type: 'SET_UPLOADED_IMAGE', layerId, image }),
     updateLayerImagePosition: (layerId: string, position: { x: number; y: number; width: number; height: number }) => dispatch({ type: 'UPDATE_LAYER_IMAGE_POS', layerId, position }),
+    updateLayerCanvasData: (layerId: string, canvasData: ImageData) => dispatch({ type: 'UPDATE_LAYER_CANVAS_DATA', layerId, canvasData }),
     registerExportCanvas: (fn: () => string | null) => {
       exportCanvasRef.current = fn;
     },

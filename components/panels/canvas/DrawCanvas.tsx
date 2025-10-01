@@ -14,7 +14,7 @@ import { useDrawly } from '@/context/DrawlyProvider';
  */
 export default function DrawCanvas() {
   const drawlyContext = useDrawly();
-  const { activeToolId, primaryColor, brushSize, brushHardness, setActiveToolId, layers, activeLayerId, uploadedImageForLayer, updateLayerImagePosition, saveHistory, undo, redo, canvasHistory, historyIndex, mergeLayerDown } = drawlyContext;
+  const { activeToolId, primaryColor, brushSize, brushHardness, setActiveToolId, layers, activeLayerId, uploadedImageForLayer, updateLayerImagePosition, updateLayerCanvasData, saveHistory, undo, redo, canvasHistory, historyIndex, mergeLayerDown } = drawlyContext;
   const mergeRequestRef = useRef<string | null>(null);
   const brushStampCache = useRef<Map<string, HTMLCanvasElement>>(new Map());
   const smudgeBuffer = useRef<ImageData | null>(null);
@@ -22,6 +22,7 @@ export default function DrawCanvas() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const layerCanvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
+  const dpr = useRef(typeof window !== 'undefined' ? (window.devicePixelRatio || 1) * 2 : 2);
   const isPanning = useRef(false);
   const isDrawing = useRef(false);
   const isDrawingLine = useRef(false);
@@ -46,7 +47,10 @@ export default function DrawCanvas() {
       if (canvas) {
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          states.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          states.push(imageData);
+          // Also save to layer state for proper synchronization
+          updateLayerCanvasData(layer.id, imageData);
         }
       }
     });
@@ -337,12 +341,10 @@ export default function DrawCanvas() {
     return stampCanvas;
   }
 
-  // Simple layer system - just add canvases as needed
+  // Layer canvas management - properly sync canvases with layer state
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
-    const dpr = (window.devicePixelRatio || 1) * 2; // 2x resolution for balanced performance/quality
 
     // Add white background once
     if (!container.querySelector('.bg')) {
@@ -356,17 +358,29 @@ export default function DrawCanvas() {
       container.appendChild(bg);
     }
 
-    // Create missing canvases
+    // Remove canvases for deleted layers
+    const currentLayerIds = new Set(layers.map(l => l.id));
+    for (const [layerId, canvas] of layerCanvasRefs.current.entries()) {
+      if (!currentLayerIds.has(layerId)) {
+        canvas.remove();
+        layerCanvasRefs.current.delete(layerId);
+        console.log(`Removed canvas for deleted layer: ${layerId}`);
+      }
+    }
+
+    // Create or update canvases for each layer
     layers.forEach((layer, index) => {
-      if (!layerCanvasRefs.current.has(layer.id)) {
-        const canvas = document.createElement('canvas');
-        canvas.width = canvasSize.width * dpr;
-        canvas.height = canvasSize.height * dpr;
-        console.log(`Creating canvas ${layer.id}: ${canvas.width}x${canvas.height} (DPR: ${dpr})`);
+      let canvas = layerCanvasRefs.current.get(layer.id);
+
+      if (!canvas) {
+        // Create new canvas
+        canvas = document.createElement('canvas');
+        canvas.width = canvasSize.width * dpr.current;
+        canvas.height = canvasSize.height * dpr.current;
+        console.log(`Creating canvas ${layer.id}: ${canvas.width}x${canvas.height} (DPR: ${dpr.current})`);
         canvas.style.cssText = `
           position: absolute; top: 0; left: 0;
           width: ${canvasSize.width}px; height: ${canvasSize.height}px;
-          z-index: ${index + 1};
         `;
 
         const ctx = canvas.getContext('2d', {
@@ -374,21 +388,24 @@ export default function DrawCanvas() {
           desynchronized: false,
           colorSpace: 'srgb'
         })!;
-        // Ultra high-quality rendering settings
+
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        // Note: textRenderingOptimization not available in all browsers
-        ctx.scale(dpr, dpr);
+        ctx.scale(dpr.current, dpr.current);
+
+        // Restore canvas data if it exists in layer state
+        if (layer.canvasData) {
+          ctx.putImageData(layer.canvasData, 0, 0);
+          console.log(`Restored canvas data for layer ${layer.id}`);
+        }
 
         layerCanvasRefs.current.set(layer.id, canvas);
         container.appendChild(canvas);
-
       }
 
-      // Update canvas properties
-      const canvas = layerCanvasRefs.current.get(layer.id)!;
+      // Update canvas properties and z-index for proper layer ordering
       canvas.style.opacity = String(layer.opacity);
       canvas.style.visibility = layer.visible ? 'visible' : 'hidden';
       canvas.style.pointerEvents = layer.id === activeLayerId ? 'auto' : 'none';
