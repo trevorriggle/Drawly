@@ -305,7 +305,9 @@ export default function DrawCanvas() {
     // Clear cache if too large
     if (brushStampCache.current.size > 50) {
       const firstKey = brushStampCache.current.keys().next().value;
-      brushStampCache.current.delete(firstKey);
+      if (firstKey !== undefined) {
+        brushStampCache.current.delete(firstKey);
+      }
     }
 
     return stampCanvas;
