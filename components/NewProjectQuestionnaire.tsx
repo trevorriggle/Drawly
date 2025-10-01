@@ -57,8 +57,31 @@ export default function NewProjectQuestionnaire({ onComplete, onGoToProjects }: 
         width: '100%',
         maxHeight: '90vh',
         overflow: 'auto',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+        position: 'relative'
       }}>
+        <button
+          onClick={onGoToProjects}
+          style={{
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            background: 'transparent',
+            border: 'none',
+            fontSize: 24,
+            color: '#6b7280',
+            cursor: 'pointer',
+            width: 32,
+            height: 32,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 4
+          }}
+          aria-label="Close"
+        >
+          ×
+        </button>
         <h2 style={{ fontSize: 28, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
           Ready to draw?
         </h2>
