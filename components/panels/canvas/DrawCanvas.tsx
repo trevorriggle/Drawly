@@ -14,7 +14,7 @@ import { useDrawly } from '@/context/DrawlyProvider';
  */
 export default function DrawCanvas() {
   const drawlyContext = useDrawly();
-  const { activeToolId, primaryColor, brushSize, setActiveToolId, layers, activeLayerId, uploadedImageForLayer, updateLayerImagePosition } = drawlyContext;
+  const { activeToolId, primaryColor, brushSize, setActiveToolId, layers, activeLayerId, uploadedImageForLayer, updateLayerImagePosition, saveHistory, undo, redo, canvasHistory, historyIndex } = drawlyContext;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const layerCanvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
@@ -34,6 +34,48 @@ export default function DrawCanvas() {
   const [moveStartPos, setMoveStartPos] = useState<{x: number, y: number} | null>(null);
   const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
   const [resizingHandle, setResizingHandle] = useState<'tl' | 'tr' | 'bl' | 'br' | null>(null);
+
+  // Helper functions for undo/redo
+  function saveCanvasState() {
+    const states: ImageData[] = [];
+    layers.forEach((layer) => {
+      const canvas = layerCanvasRefs.current.get(layer.id);
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          states.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+        }
+      }
+    });
+    saveHistory(states);
+  }
+
+  function restoreCanvasState(states: ImageData[]) {
+    states.forEach((imageData, index) => {
+      const layer = layers[index];
+      if (layer) {
+        const canvas = layerCanvasRefs.current.get(layer.id);
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.putImageData(imageData, 0, 0);
+          }
+        }
+      }
+    });
+  }
+
+  // Register restore function
+  useEffect(() => {
+    drawlyContext.registerRestoreCanvas(restoreCanvasState);
+  }, [layers, drawlyContext]);
+
+  // Listen to history changes and restore canvas
+  useEffect(() => {
+    if (historyIndex >= 0 && canvasHistory[historyIndex]) {
+      restoreCanvasState(canvasHistory[historyIndex]);
+    }
+  }, [historyIndex]);
 
   // Export canvas function - register it once
   useEffect(() => {
@@ -350,6 +392,7 @@ export default function DrawCanvas() {
         ctx.fillStyle = primaryColor;
         ctx.textBaseline = 'top';
         ctx.fillText(text, x, y);
+        saveCanvasState();
       }
       return;
     }
@@ -417,6 +460,7 @@ export default function DrawCanvas() {
       const { x, y } = toCanvasCoords(e.clientX, e.clientY);
       const ctx = getActiveLayerCtx();
       fillArea(ctx, x, y, primaryColor);
+      saveCanvasState();
       return;
     }
 
@@ -742,6 +786,14 @@ export default function DrawCanvas() {
       isDrawingLine.current = false;
       lineStart.current = null;
       linePreviewImageData.current = null;
+
+      // Save state after drawing line/shape
+      saveCanvasState();
+    }
+
+    // Save state after brush/pencil/eraser drawing
+    if (isDrawing.current) {
+      saveCanvasState();
     }
 
     isPanning.current = false;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DrawCanvas from '../../components/panels/canvas/DrawCanvas';
 import ColorPanel from '../../components/panels/ColorPanel';
 import LayersPanel from '../../components/panels/LayersPanel';
@@ -9,9 +9,29 @@ import { useDrawly } from '../../context/DrawlyProvider';
 import { DEFAULT_TOOLS } from '../../data/tools';
 
 export default function StudioPage() {
-  const { activeToolId, setActiveToolId, getExportCanvas, questionnaireAnswers, setFeedback, addLayer, setUploadedImage, layers } = useDrawly();
+  const { activeToolId, setActiveToolId, getExportCanvas, questionnaireAnswers, setFeedback, addLayer, setUploadedImage, layers, undo, redo, canUndo, canRedo } = useDrawly();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadedImageBase64, setUploadedImageBase64] = useState<string | null>(null);
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
+        e.preventDefault();
+        if (canUndo) undo();
+      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z') {
+        e.preventDefault();
+        if (canRedo) redo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        // Alternative redo shortcut
+        e.preventDefault();
+        if (canRedo) redo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo, canUndo, canRedo]);
 
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -127,6 +147,57 @@ export default function StudioPage() {
             onClick={() => setActiveToolId(t.id)}
           />
         ))}
+
+        {/* Undo/Redo buttons */}
+        <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '1px solid #374151' }}>
+          <button
+            onClick={undo}
+            disabled={!canUndo}
+            style={{
+              width: '100%',
+              padding: 12,
+              background: canUndo ? '#1f2937' : '#111827',
+              color: canUndo ? 'white' : '#6b7280',
+              border: '1px solid #374151',
+              borderRadius: 8,
+              cursor: canUndo ? 'pointer' : 'not-allowed',
+              marginBottom: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8
+            }}
+            title="Undo (Ctrl+Z)"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M9 7H4v5" stroke="currentColor" strokeWidth="2" fill="none"/>
+              <path d="M20 17a7 7 0 0 0-11-5l-5 5" stroke="currentColor" strokeWidth="2" fill="none"/>
+            </svg>
+          </button>
+          <button
+            onClick={redo}
+            disabled={!canRedo}
+            style={{
+              width: '100%',
+              padding: 12,
+              background: canRedo ? '#1f2937' : '#111827',
+              color: canRedo ? 'white' : '#6b7280',
+              border: '1px solid #374151',
+              borderRadius: 8,
+              cursor: canRedo ? 'pointer' : 'not-allowed',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8
+            }}
+            title="Redo (Ctrl+Shift+Z)"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M15 7h5v5" stroke="currentColor" strokeWidth="2" fill="none"/>
+              <path d="M4 17a7 7 0 0 1 11-5l5 5" stroke="currentColor" strokeWidth="2" fill="none"/>
+            </svg>
+          </button>
+        </div>
       </aside>
 
       <section className="canvas-wrap">

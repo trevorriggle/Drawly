@@ -22,6 +22,8 @@ type State = {
   questionnaireAnswers: QuestionnaireAnswers | null;
   feedback: string | null;
   uploadedImageForLayer: { layerId: string; image: HTMLImageElement } | null;
+  canvasHistory: ImageData[][];
+  historyIndex: number;
 };
 
 type Action =
@@ -35,7 +37,10 @@ type Action =
   | { type: 'SET_QUESTIONNAIRE'; answers: QuestionnaireAnswers }
   | { type: 'SET_FEEDBACK'; feedback: string | null }
   | { type: 'SET_UPLOADED_IMAGE'; layerId: string; image: HTMLImageElement }
-  | { type: 'UPDATE_LAYER_IMAGE_POS'; layerId: string; position: { x: number; y: number; width: number; height: number } };
+  | { type: 'UPDATE_LAYER_IMAGE_POS'; layerId: string; position: { x: number; y: number; width: number; height: number } }
+  | { type: 'SAVE_HISTORY'; canvasStates: ImageData[] }
+  | { type: 'UNDO' }
+  | { type: 'REDO' };
 
 const initial: State = {
   activeToolId: 'pencil',
@@ -45,7 +50,9 @@ const initial: State = {
   activeLayerId: 'background',
   questionnaireAnswers: null,
   feedback: null,
-  uploadedImageForLayer: null
+  uploadedImageForLayer: null,
+  canvasHistory: [],
+  historyIndex: -1
 };
 
 function reducer(state: State, action: Action): State {
@@ -75,6 +82,33 @@ function reducer(state: State, action: Action): State {
         )
       };
     }
+    case 'SAVE_HISTORY': {
+      const MAX_HISTORY = 50;
+      const newHistory = state.canvasHistory.slice(0, state.historyIndex + 1);
+      newHistory.push(action.canvasStates);
+      if (newHistory.length > MAX_HISTORY) {
+        newHistory.shift();
+      }
+      return {
+        ...state,
+        canvasHistory: newHistory,
+        historyIndex: newHistory.length - 1
+      };
+    }
+    case 'UNDO': {
+      if (state.historyIndex <= 0) return state;
+      return {
+        ...state,
+        historyIndex: state.historyIndex - 1
+      };
+    }
+    case 'REDO': {
+      if (state.historyIndex >= state.canvasHistory.length - 1) return state;
+      return {
+        ...state,
+        historyIndex: state.historyIndex + 1
+      };
+    }
     default: return state;
   }
 }
@@ -93,11 +127,19 @@ const Ctx = createContext<(State & {
   updateLayerImagePosition: (layerId: string, position: { x: number; y: number; width: number; height: number }) => void;
   registerExportCanvas: (fn: () => string | null) => void;
   getExportCanvas: () => (() => string | null) | null;
+  saveHistory: (canvasStates: ImageData[]) => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  registerRestoreCanvas: (fn: (states: ImageData[]) => void) => void;
+  getRestoreCanvas: () => ((states: ImageData[]) => void) | null;
 }) | null>(null);
 
 export function DrawlyProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initial);
   const exportCanvasRef = useRef<(() => string | null) | null>(null);
+  const restoreCanvasRef = useRef<((states: ImageData[]) => void) | null>(null);
 
   const api = useMemo(() => ({
     ...state,
@@ -115,7 +157,16 @@ export function DrawlyProvider({ children }: { children: React.ReactNode }) {
     registerExportCanvas: (fn: () => string | null) => {
       exportCanvasRef.current = fn;
     },
-    getExportCanvas: () => exportCanvasRef.current
+    getExportCanvas: () => exportCanvasRef.current,
+    saveHistory: (canvasStates: ImageData[]) => dispatch({ type: 'SAVE_HISTORY', canvasStates }),
+    undo: () => dispatch({ type: 'UNDO' }),
+    redo: () => dispatch({ type: 'REDO' }),
+    canUndo: state.historyIndex > 0,
+    canRedo: state.historyIndex < state.canvasHistory.length - 1,
+    registerRestoreCanvas: (fn: (states: ImageData[]) => void) => {
+      restoreCanvasRef.current = fn;
+    },
+    getRestoreCanvas: () => restoreCanvasRef.current
   }), [state]);
 
   return (
