@@ -1,4 +1,4 @@
-# Integration Guide: Using @drawly/core
+# Integration Guide: Using @drawevolve/core
 
 ## Quick Start
 
@@ -30,7 +30,7 @@ import {
   // Smoothing
   smoothCatmullRom,
   interpolatePoints,
-} from '@drawly/core';
+} from '@drawevolve/core';
 ```
 
 ### 2. Initialize History
@@ -186,7 +186,7 @@ import {
   addCommand,
   type HistoryState,
   type ToolConfig,
-} from '@drawly/core';
+} from '@drawevolve/core';
 
 function DrawingCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -316,11 +316,11 @@ class MyCanvasRenderer {
 ## iOS Integration (Conceptual)
 
 ```swift
-// Future: Swift bindings for @drawly/core
-import DrawlyCore
+// Future: Swift bindings for @drawevolve/core
+import DrawEvolveCore
 
 class DrawingViewController: UIViewController {
-    var history = DrawlyCore.createHistory()
+    var history = DrawEvolveCore.createHistory()
 
     func handleTouch(_ location: CGPoint, pressure: CGFloat) {
         let point = StrokePoint(
@@ -330,14 +330,14 @@ class DrawingViewController: UIViewController {
             timestamp: Date.now()
         )
 
-        let command = DrawlyCore.createBeginStroke(
+        let command = DrawEvolveCore.createBeginStroke(
             strokeId: UUID().uuidString,
             layerId: "layer-0",
             tool: currentTool,
             point: point
         )
 
-        history = DrawlyCore.addCommand(history, command)
+        history = DrawEvolveCore.addCommand(history, command)
         render(command)
     }
 }
@@ -367,7 +367,7 @@ command.points.forEach(point => {
 ### Q: How do I smooth strokes?
 
 ```typescript
-import { smoothCatmullRom } from '@drawly/core';
+import { smoothCatmullRom } from '@drawevolve/core';
 
 const smoothedPoints = smoothCatmullRom(rawPoints, 4);
 ```

@@ -17,7 +17,7 @@
     "incremental": true,
     "baseUrl": ".",
     "paths": {
-      "@drawly/core": [
+      "@drawevolve/core": [
         "packages/core/src/index.ts"
       ],
       "@/components/*": [

@@ -1,10 +1,10 @@
 "use client";
 import { useState, useRef } from 'react';
-import { useDrawly } from '@/context/DrawlyProvider';
+import { useDrawEvolve } from '@/context/DrawEvolveProvider';
 import Icon from '@/components/Icon';
 
 export default function LayersPanel() {
-  const { layers, activeLayerId, setActiveLayer, addLayer, toggleLayer, setLayerOpacity, mergeLayerDown, deleteLayer, moveLayer } = useDrawly();
+  const { layers, activeLayerId, setActiveLayer, addLayer, toggleLayer, setLayerOpacity, mergeLayerDown, deleteLayer, moveLayer } = useDrawEvolve();
   const [draggedLayerId, setDraggedLayerId] = useState<string | null>(null);
   const [dragOverLayerId, setDragOverLayerId] = useState<string | null>(null);
 

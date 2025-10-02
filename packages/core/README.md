@@ -1,10 +1,10 @@
-# @drawly/core
+# @drawevolve/core
 
-Framework-agnostic drawing engine for Drawly.
+Framework-agnostic drawing engine for DrawEvolve.
 
 ## Overview
 
-`@drawly/core` is a pure TypeScript library that defines the core drawing primitives, command pattern, and data structures for Drawly. It has **zero dependencies** and no DOM/browser APIs, making it suitable for:
+`@drawevolve/core` is a pure TypeScript library that defines the core drawing primitives, command pattern, and data structures for DrawEvolve. It has **zero dependencies** and no DOM/browser APIs, making it suitable for:
 
 - Web (Canvas 2D, WebGL, OffscreenCanvas)
 - iOS (PencilKit, Metal, Core Graphics)
@@ -106,7 +106,7 @@ import {
   addCommand,
   type ToolConfig,
   type StrokePoint,
-} from '@drawly/core';
+} from '@drawevolve/core';
 
 // Setup
 let history = createHistory();
@@ -142,7 +142,7 @@ Your Next.js app becomes a **renderer adapter**:
 3. Render commands to Canvas 2D
 
 ### iOS (PencilKit)
-1. Import `@drawly/core` types
+1. Import `@drawevolve/core` types
 2. Deserialize drawings
 3. Render strokes using PencilKit or Metal
 4. Use same command history for undo/redo

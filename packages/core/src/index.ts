@@ -1,5 +1,5 @@
 /**
- * @drawly/core
+ * @drawevolve/core
  * Framework-agnostic drawing engine
  *
  * This package contains the core drawing logic that can be used

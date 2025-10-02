@@ -1,8 +1,8 @@
-# Drawly Architecture
+# DrawEvolve Architecture
 
 ## Overview
 
-Drawly uses a **framework-agnostic core** architecture that separates drawing logic from rendering implementation. This enables portability across platforms (web, iOS, Android, desktop) without rewriting the core drawing engine.
+DrawEvolve uses a **framework-agnostic core** architecture that separates drawing logic from rendering implementation. This enables portability across platforms (web, iOS, Android, desktop) without rewriting the core drawing engine.
 
 ## Architecture Diagram
 
@@ -15,7 +15,7 @@ Drawly uses a **framework-agnostic core** architecture that separates drawing lo
                     │ Uses
                     ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                  @drawly/core                                │
+│                  @drawevolve/core                            │
 │  Framework-agnostic drawing engine (Pure TypeScript)        │
 │  • Stroke models & tool configs                             │
 │  • Command pattern (BeginStroke, AppendPoints, etc.)        │
@@ -39,7 +39,7 @@ Drawly uses a **framework-agnostic core** architecture that separates drawing lo
 
 ### 1. **Separation of Concerns**
 
-- **Core (`@drawly/core`)**: Pure drawing logic, no platform dependencies
+- **Core (`@drawevolve/core`)**: Pure drawing logic, no platform dependencies
 - **Adapters**: Platform-specific rendering implementations
 - **UI Layer**: React components, iOS views, etc.
 
@@ -78,9 +78,9 @@ Display on Screen
 ## Project Structure
 
 ```
-drawly/
+drawevolve/
 ├── packages/
-│   └── core/                    # @drawly/core package
+│   └── core/                    # @drawevolve/core package
 │       ├── src/
 │       │   ├── types.ts         # Stroke, Point, Tool types
 │       │   ├── commands.ts      # Command pattern
@@ -97,7 +97,7 @@ drawly/
 │           └── DrawCanvas.tsx   # Canvas renderer (to be refactored)
 │
 ├── context/                     # React state management
-│   └── DrawlyProvider.tsx       # App state
+│   └── DrawEvolveProvider.tsx   # App state
 │
 ├── lib/                         # Utilities
 ├── app/                         # Next.js pages
@@ -120,7 +120,7 @@ The existing `DrawCanvas.tsx` component has:
 
 ```typescript
 import { CanvasAdapter } from './adapters/CanvasAdapter';
-import { createBeginStroke, type ToolConfig } from '@drawly/core';
+import { createBeginStroke, type ToolConfig } from '@drawevolve/core';
 
 function DrawCanvas() {
   const adapterRef = useRef<CanvasAdapter>();
@@ -138,11 +138,11 @@ function DrawCanvas() {
 ### iOS Integration (Future)
 
 ```swift
-import DrawlyCore // Swift bindings to @drawly/core
+import DrawEvolveCore // Swift bindings to @drawevolve/core
 
 class DrawingViewController: UIViewController {
     func loadDrawing(json: String) {
-        let document = DrawlyCore.deserializeDrawing(json)
+        let document = DrawEvolveCore.deserializeDrawing(json)
 
         // Render strokes using PencilKit
         for stroke in document.strokes {
@@ -177,7 +177,7 @@ class DrawingViewController: UIViewController {
 
 ## Next Steps
 
-1. **Refactor DrawCanvas.tsx** to use `@drawly/core`
+1. **Refactor DrawCanvas.tsx** to use `@drawevolve/core`
 2. **Create CanvasAdapter class** for web rendering
 3. **Migrate state** from ImageData to core commands
 4. **Add serialization** to save/load drawings

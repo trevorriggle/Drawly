@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
 /**
- * Drawly Buddy
+ * DrawEvolve Buddy
  * - Draggable floating button (pencil icon)
  * - Click toggles feedback card
  * - Position persists to localStorage
@@ -15,7 +15,7 @@ interface FloatingBuddyProps {
   onCloseFeedback?: () => void;
 }
 
-const STORAGE_KEY = "drawly_buddy_pos_v1";
+const STORAGE_KEY = "drawevolve_buddy_pos_v1";
 const EDGE = 8;         // padding from viewport edges
 const BTN_W = 56;       // approx button size (for clamping)
 const BTN_H = 56;
@@ -143,7 +143,7 @@ export default function FloatingBuddy({ feedback, onCloseFeedback }: FloatingBud
           userSelect: "none",
           transition: "all 0.2s ease"
         }}
-        aria-label="Drawly Buddy"
+        aria-label="DrawEvolve Buddy"
       >
         {/* simple pencil placeholder (swap with animated buddy later) */}
         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -183,10 +183,10 @@ export default function FloatingBuddy({ feedback, onCloseFeedback }: FloatingBud
             padding: 16,
           }}
           role="dialog"
-          aria-label="Drawly feedback"
+          aria-label="DrawEvolve feedback"
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>Drawly</div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>DrawEvolve</div>
             <button
               onClick={() => setOpen(false)}
               style={{

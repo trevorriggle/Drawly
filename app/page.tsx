@@ -4,12 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import NewProjectQuestionnaire from '../components/NewProjectQuestionnaire';
 import type { QuestionnaireAnswers } from '../components/NewProjectQuestionnaire';
-import { useDrawly } from '../context/DrawlyProvider';
+import { useDrawEvolve } from '../context/DrawEvolveProvider';
 
 export default function HomePage() {
   const [showQuestionnaire, setShowQuestionnaire] = useState(false);
   const router = useRouter();
-  const { setQuestionnaireAnswers } = useDrawly();
+  const { setQuestionnaireAnswers } = useDrawEvolve();
   return (
     <div style={{
       display: 'flex',
@@ -22,7 +22,7 @@ export default function HomePage() {
     }}>
       <div>
         <h1 style={{ fontSize: 48, fontWeight: 700, color: '#111827', marginBottom: 16 }}>
-          Welcome to Drawly
+          Welcome to DrawEvolve
         </h1>
         <p style={{ fontSize: 20, color: '#6b7280', marginBottom: 32 }}>
           Draw first. Get coached second. Improve always.

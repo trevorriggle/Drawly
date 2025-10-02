@@ -1,9 +1,9 @@
 "use client";
-import { useDrawly } from '@/context/DrawlyProvider';
+import { useDrawEvolve } from '@/context/DrawEvolveProvider';
 import Icon from '@/components/Icon';
 
 export default function ColorPanel() {
-  const { primaryColor, setPrimaryColor, brushSize, setBrushSize, activeToolId, brushHardness, setBrushHardness } = useDrawly();
+  const { primaryColor, setPrimaryColor, brushSize, setBrushSize, activeToolId, brushHardness, setBrushHardness } = useDrawEvolve();
   return (
     <div className="panel">
       <h3 className="panel-title">

@@ -1,5 +1,5 @@
 {
-  "name": "drawly",
+  "name": "drawevolve",
   "private": true,
   "version": "0.0.1",
   "workspaces": [
@@ -15,7 +15,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@drawly/core": "file:./packages/core",
+    "@drawevolve/core": "file:./packages/core",
     "@supabase/supabase-js": "^2.45.0",
     "next": "14.2.5",
     "openai": "^5.23.2",

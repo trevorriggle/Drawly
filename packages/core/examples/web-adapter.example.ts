@@ -1,5 +1,5 @@
 /**
- * Example: Web Canvas 2D Adapter for @drawly/core
+ * Example: Web Canvas 2D Adapter for @drawevolve/core
  *
  * This demonstrates how to integrate the core drawing engine
  * with a browser Canvas 2D context.
@@ -18,7 +18,7 @@ import {
   type StrokePoint,
   type DrawingCommand,
   smoothCatmullRom,
-} from '@drawly/core';
+} from '@drawevolve/core';
 
 /**
  * Canvas 2D Renderer Adapter

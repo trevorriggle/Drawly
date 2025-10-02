@@ -11,7 +11,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <header className="header">
-        <div className="brand">Drawly</div>
+        <div className="brand">DrawEvolve</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <span className="kbd">⌘S</span>
           <button

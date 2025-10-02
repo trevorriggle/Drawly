@@ -3,7 +3,7 @@ import Link from 'next/link';
 export default function HomePage() {
   return (
     <div style={{ padding: 20 }}>
-      <h1>Welcome to Drawly</h1>
+      <h1>Welcome to DrawEvolve</h1>
       <p>Draw first. Get coached second. Improve always.</p>
       <p>
         <Link className="kbd" href="/studio">Open Studio →</Link>

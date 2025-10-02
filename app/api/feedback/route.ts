@@ -52,7 +52,7 @@ Be objective and specific. Use concrete terms. No fluff.`,
     const visualAnalysisText = visualAnalysisResponse.choices[0]?.message?.content || '';
 
     // Second API call: Personalized feedback
-    const feedbackPrompt = `You are Drawly, an expert art coach. The user is working on: ${questionnaireAnswers.subject} in ${questionnaireAnswers.style} style${questionnaireAnswers.artists ? `, inspired by ${questionnaireAnswers.artists}` : ''}${questionnaireAnswers.techniques ? `. Techniques: ${questionnaireAnswers.techniques}` : ''}${questionnaireAnswers.feedbackFocus ? `. Focus area: ${questionnaireAnswers.feedbackFocus}` : ''}${questionnaireAnswers.additionalContext ? `. Context: ${questionnaireAnswers.additionalContext}` : ''}.
+    const feedbackPrompt = `You are the DrawEvolve AI coach, an expert art mentor. The user is working on: ${questionnaireAnswers.subject} in ${questionnaireAnswers.style} style${questionnaireAnswers.artists ? `, inspired by ${questionnaireAnswers.artists}` : ''}${questionnaireAnswers.techniques ? `. Techniques: ${questionnaireAnswers.techniques}` : ''}${questionnaireAnswers.feedbackFocus ? `. Focus area: ${questionnaireAnswers.feedbackFocus}` : ''}${questionnaireAnswers.additionalContext ? `. Context: ${questionnaireAnswers.additionalContext}` : ''}.
 
 Based on this technical analysis:
 ${visualAnalysisText}

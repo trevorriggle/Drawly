@@ -1,4 +1,4 @@
-# ✅ @drawly/core Package - Implementation Complete
+# ✅ @drawevolve/core Package - Implementation Complete
 
 ## What Was Built
 
@@ -121,7 +121,7 @@ User Input → Event Handler → Core Commands → History → Adapter → Rende
 
 ### Web (Next.js)
 ```typescript
-import { createBeginStroke, type ToolConfig } from '@drawly/core';
+import { createBeginStroke, type ToolConfig } from '@drawevolve/core';
 
 const command = createBeginStroke(strokeId, layerId, tool, point);
 history = addCommand(history, command);
@@ -130,7 +130,7 @@ canvasAdapter.render(command);
 
 ### iOS (Future)
 ```swift
-import DrawlyCore
+import DrawEvolveCore
 
 let point = StrokePoint(x: touch.x, y: touch.y, pressure: force, timestamp: now)
 let command = createBeginStroke(strokeId, layerId, tool, point)
@@ -140,7 +140,7 @@ pencilKitAdapter.render(command)
 
 ### Android (Future)
 ```kotlin
-import com.drawly.core.*
+import com.drawevolve.core.*
 
 val point = StrokePoint(x, y, pressure, timestamp)
 val command = createBeginStroke(strokeId, layerId, tool, point)
@@ -194,7 +194,7 @@ dist/            : ~20 KB (minified)
 
 ### Basic Drawing
 ```typescript
-import { createHistory, createBeginStroke } from '@drawly/core';
+import { createHistory, createBeginStroke } from '@drawevolve/core';
 
 let history = createHistory();
 const tool = { type: 'brush', size: 10, color: '#000', ... };
@@ -204,7 +204,7 @@ history = addCommand(history, command);
 
 ### Undo/Redo
 ```typescript
-import { undo, redo } from '@drawly/core';
+import { undo, redo } from '@drawevolve/core';
 
 const { history: newHistory, command } = undo(history);
 // Re-render from history
@@ -212,7 +212,7 @@ const { history: newHistory, command } = undo(history);
 
 ### Save/Load
 ```typescript
-import { serializeDrawing, deserializeDrawing } from '@drawly/core';
+import { serializeDrawing, deserializeDrawing } from '@drawevolve/core';
 
 const json = serializeDrawing(document);
 localStorage.setItem('drawing', json);
@@ -251,7 +251,7 @@ cd packages/core && npm run dev
 
 ```typescript
 // Example test (add Jest/Vitest later)
-import { createHistory, createBeginStroke, addCommand, undo } from '@drawly/core';
+import { createHistory, createBeginStroke, addCommand, undo } from '@drawevolve/core';
 
 let history = createHistory();
 const cmd = createBeginStroke('s1', 'l0', tool, point);
@@ -268,7 +268,7 @@ assert(result.command === cmd);
 
 | Before | After |
 |--------|-------|
-| Canvas code in DrawCanvas.tsx | Pure logic in @drawly/core |
+| Canvas code in DrawCanvas.tsx | Pure logic in @drawevolve/core |
 | ImageData for history | Command objects |
 | React-specific | Framework-agnostic |
 | Browser-only | Cross-platform ready |
@@ -291,7 +291,7 @@ assert(result.command === cmd);
 
 **The core drawing engine is complete and ready to use!**
 
-Your Next.js app can now gradually adopt `@drawly/core` by:
+Your Next.js app can now gradually adopt `@drawevolve/core` by:
 1. Creating a `CanvasAdapter` (based on the example)
 2. Converting pointer events to commands
 3. Replacing ImageData history with command history

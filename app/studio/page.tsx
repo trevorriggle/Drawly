@@ -5,11 +5,11 @@ import DrawCanvas from '../../components/panels/canvas/DrawCanvas';
 import ColorPanel from '../../components/panels/ColorPanel';
 import LayersPanel from '../../components/panels/LayersPanel';
 import ToolButton from '../../components/ToolButton';
-import { useDrawly } from '../../context/DrawlyProvider';
+import { useDrawEvolve } from '../../context/DrawEvolveProvider';
 import { DEFAULT_TOOLS } from '../../data/tools';
 
 export default function StudioPage() {
-  const { activeToolId, setActiveToolId, getExportCanvas, questionnaireAnswers, setFeedback, addLayer, setUploadedImage, layers, undo, redo, canUndo, canRedo } = useDrawly();
+  const { activeToolId, setActiveToolId, getExportCanvas, questionnaireAnswers, setFeedback, addLayer, setUploadedImage, layers, undo, redo, canUndo, canRedo } = useDrawEvolve();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadedImageBase64, setUploadedImageBase64] = useState<string | null>(null);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
@@ -79,7 +79,7 @@ export default function StudioPage() {
     // Create download link
     const link = document.createElement('a');
     link.href = `data:image/png;base64,${imageBase64}`;
-    link.download = `drawly-${Date.now()}.png`;
+    link.download = `drawevolve-${Date.now()}.png`;
     link.click();
   };
 

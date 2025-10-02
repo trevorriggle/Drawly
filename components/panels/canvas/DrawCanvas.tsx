@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useDrawly } from '@/context/DrawlyProvider';
+import { useDrawEvolve } from '@/context/DrawEvolveProvider';
 
 /**
  * Minimal raster canvas that supports:
@@ -13,8 +13,8 @@ import { useDrawly } from '@/context/DrawlyProvider';
  * This is intentionally small but stable so the UI can be built around it.
  */
 export default function DrawCanvas() {
-  const drawlyContext = useDrawly();
-  const { activeToolId, primaryColor, brushSize, brushHardness, setActiveToolId, layers, activeLayerId, uploadedImageForLayer, updateLayerImagePosition, updateLayerCanvasData, saveHistory, undo, redo, canvasHistory, historyIndex, mergeLayerDown } = drawlyContext;
+  const drawEvolveContext = useDrawEvolve();
+  const { activeToolId, primaryColor, brushSize, brushHardness, setActiveToolId, layers, activeLayerId, uploadedImageForLayer, updateLayerImagePosition, updateLayerCanvasData, saveHistory, undo, redo, canvasHistory, historyIndex, mergeLayerDown } = drawEvolveContext;
   const mergeRequestRef = useRef<string | null>(null);
   const brushStampCache = useRef<Map<string, HTMLCanvasElement>>(new Map());
   const smudgeBuffer = useRef<ImageData | null>(null);
@@ -102,8 +102,8 @@ export default function DrawCanvas() {
 
   // Register restore function
   useEffect(() => {
-    drawlyContext.registerRestoreCanvas(restoreCanvasState);
-  }, [layers, drawlyContext]);
+    drawEvolveContext.registerRestoreCanvas(restoreCanvasState);
+  }, [layers, drawEvolveContext]);
 
   // Handle keyboard shortcuts for shape fill mode
   useEffect(() => {
@@ -173,8 +173,8 @@ export default function DrawCanvas() {
       console.log(`Merged layer ${layerId} down into ${targetLayer.id}`);
     };
 
-    drawlyContext.registerMergeLayerCanvas(mergeFunc);
-  }, [layers, drawlyContext, updateLayerCanvasData]);
+    drawEvolveContext.registerMergeLayerCanvas(mergeFunc);
+  }, [layers, drawEvolveContext, updateLayerCanvasData]);
 
   // Export canvas function - register it once
   useEffect(() => {
@@ -215,9 +215,9 @@ export default function DrawCanvas() {
     };
 
     // Register with context
-    drawlyContext.registerExportCanvas(exportFunc);
+    drawEvolveContext.registerExportCanvas(exportFunc);
     console.log('Export function registered');
-  }, [layers, drawlyContext]);
+  }, [layers, drawEvolveContext]);
 
   // Update canvas size to fill container
   useEffect(() => {

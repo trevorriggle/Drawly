@@ -204,7 +204,7 @@ const Ctx = createContext<(State & {
   moveLayer: (layerId: string, direction: 'up' | 'down') => void;
 }) | null>(null);
 
-export function DrawlyProvider({ children }: { children: React.ReactNode }) {
+export function DrawEvolveProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initial);
   const exportCanvasRef = useRef<(() => string | null) | null>(null);
   const restoreCanvasRef = useRef<((states: ImageData[]) => void) | null>(null);
@@ -260,8 +260,8 @@ export function DrawlyProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useDrawly() {
+export function useDrawEvolve() {
   const ctx = useContext(Ctx);
-  if (!ctx) throw new Error('useDrawly must be used within DrawlyProvider');
+  if (!ctx) throw new Error('useDrawEvolve must be used within DrawEvolveProvider');
   return ctx;
 }
